@@ -17,5 +17,7 @@ name = "mtcs-cli"
 path = "src/cli/main.rs"
 
 [dependencies]
+csv = "1.1.6"
+clap = { version = "4.0.32", features = ["derive"] }
 mcmf = "2.0.0"
 serde = { version = "1.0", default-features = false, features = ["derive"] }

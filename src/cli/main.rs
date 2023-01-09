@@ -1,22 +1,36 @@
 #![warn(clippy::all, clippy::pedantic)]
-use std::env;
 use std::error::Error;
+use std::fs::File;
+use std::io::{Read, Write};
+use std::path::PathBuf;
 
-use csv::Writer;
+use clap::Parser;
+use csv::{Reader as CsvReader, Writer as CsvWriter};
 use mtcs::{max_flow_network_simplex, ObligationNetwork};
 
-// Function to read the obligatinos from CSV file
-fn read_obligations_csv(filepath: &str, _has_headers: bool) -> ObligationNetwork {
-    let file = std::fs::File::open(filepath).unwrap();
-    let mut rdr = csv::Reader::from_reader(file);
+#[derive(Parser, Debug)]
+#[command(version, long_about = None)]
+struct Args {
+    /// Path to input file
+    #[arg(short, long)]
+    input_file: PathBuf,
+
+    /// Path to output file
+    #[arg(short, long)]
+    output_file: PathBuf,
+}
+
+// Read the obligations from CSV file
+fn read_obligations_csv(reader: impl Read, _has_headers: bool) -> ObligationNetwork {
+    let mut rdr = CsvReader::from_reader(reader);
     let rows: Result<Vec<_>, _> = rdr.deserialize().collect();
     let rows = rows.unwrap();
     ObligationNetwork { rows }
 }
 
-// Function to write the clearing results
-fn write_csv(res: Vec<(i32, i32)>, filepath: &str) -> Result<(), Box<dyn Error>> {
-    let mut wtr = Writer::from_path(filepath)?;
+// Write the clearing results to CSV file
+fn write_csv(res: Vec<(i32, i32)>, writer: impl Write) -> Result<(), Box<dyn Error>> {
+    let mut wtr = CsvWriter::from_writer(writer);
     wtr.write_record(["id", "amount"])?;
     for obligation in res {
         let id = obligation.0;
@@ -27,19 +41,14 @@ fn write_csv(res: Vec<(i32, i32)>, filepath: &str) -> Result<(), Box<dyn Error>>
     Ok(())
 }
 
-fn main() {
-    // get the filename to process
-    let args: Vec<String> = env::args().collect();
-    // println!("{:?}", args);    // Test output
-    let mut inputfile = "./data/".to_string();
-    inputfile += &args[1];
-    let mut outputfile = "./result/".to_string();
-    outputfile += &args[1];
+fn main() -> Result<(), Box<dyn Error>> {
+    let args = Args::parse();
+    let input_file = File::open(args.input_file)?;
 
-    // Read the obligatins CSV file from CosmWasm CoFi Clearing MVP
-    let on = read_obligations_csv(&inputfile, true);
-
+    // Read the obligations CSV file
+    let on = read_obligations_csv(&input_file, true);
     let res = max_flow_network_simplex(on);
 
-    let _res_w = write_csv(res, &outputfile);
+    let output_file = File::open(args.output_file)?;
+    write_csv(res, &output_file)
 }
