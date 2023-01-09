@@ -33,11 +33,11 @@ fn read_obligations_csv(filepath: &str, _has_headers: bool) -> ObligationNetwork
 // Function to write the clearing results
 fn write_csv(res: Vec<(i32, i32)>, filepath: &str) -> Result<(), Box<dyn Error>> {
     let mut wtr = Writer::from_path(filepath)?;
-    wtr.write_record(&["id", "amount"])?;
+    wtr.write_record(["id", "amount"])?;
     for obligation in res {
         let id = obligation.0;
         let amount = obligation.1;
-        wtr.write_record(&[&id.to_string(), &amount.to_string()])?;
+        wtr.write_record([&id.to_string(), &amount.to_string()])?;
     }
     wtr.flush()?;
     Ok(())
@@ -79,7 +79,7 @@ fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<(i32, i32)> {
         *balance += o.amount;
         let liability = liabilities.entry((o.debtor, o.creditor)).or_insert(0);
         *liability += o.amount;
-        td += o.amount as i64;
+        td += i64::from(o.amount);
         clearing.push((o.id, o.debtor, o.creditor, o.amount));
         // println!("{:?}", o.id);
     }
@@ -110,13 +110,13 @@ fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<(i32, i32)> {
         let _result = path
             .vertices()
             .windows(2)
-            .filter(|w| (w[0].as_option() != None) & (w[1].as_option() != None))
+            .filter(|w| w[0].as_option().is_some() & w[1].as_option().is_some())
             .inspect(|w| {
                 // print!("{} --> {} : ", w[0].as_option().unwrap(), w[1].as_option().unwrap());  // Test output
                 liabilities
                     .entry((w[0].as_option().unwrap(), w[1].as_option().unwrap()))
-                    .and_modify(|e| *e -= (path.flows[0].amount) as i32);
-                tc -= path.flows[0].amount as i64;
+                    .and_modify(|e| *e -= i32::try_from(path.flows[0].amount).unwrap());
+                tc -= i64::from(path.flows[0].amount);
             })
             .collect::<Vec<_>>();
         // println!();  // Test output
@@ -127,10 +127,10 @@ fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<(i32, i32)> {
 
     // Print key results and check for correct sums
     println!("----------------------------------");
-    println!("            NID = {:?}", nid);
-    println!("     Total debt = {:?}", td);
-    println!("Total remainder = {:?}", remained);
-    println!("  Total cleared = {:?}", tc);
+    println!("            NID = {nid:?}");
+    println!("     Total debt = {td:?}");
+    println!("Total remainder = {remained:?}");
+    println!("  Total cleared = {tc:?}");
     // assert_eq!(td, remained + tc);
 
     // Assign cleared amounts to individual obligations
