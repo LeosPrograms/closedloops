@@ -1,4 +1,18 @@
-use std::collections::HashMap;
+#![no_std]
+#![deny(
+    warnings,
+    trivial_casts,
+    trivial_numeric_casts,
+    unused_import_braces,
+    unused_qualifications,
+    rust_2018_idioms
+)]
+#![forbid(unsafe_code)]
+
+extern crate alloc;
+
+use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 
 use mcmf::{Capacity, Cost, GraphBuilder, Vertex};
 use serde::Deserialize;
@@ -24,11 +38,11 @@ pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<(i32, i32)> {
     //          liabilities
     //          and a graph "g"
     // Prepare the clearing as a hashmap
-    let mut net_position: HashMap<i32, i32> = HashMap::new();
-    let mut liabilities: HashMap<(i32, i32), i32> = HashMap::new();
+    let mut net_position: BTreeMap<i32, i32> = BTreeMap::new();
+    let mut liabilities: BTreeMap<(i32, i32), i32> = BTreeMap::new();
     let mut td: i64 = 0;
     let mut g = GraphBuilder::new();
-    // let mut clearing : HashMap<i32, (i32, i32, i32)>= HashMap::new();
+
     let mut clearing = Vec::new();
     for o in on.rows {
         g.add_edge(o.debtor, o.creditor, Capacity(o.amount), Cost(1));
@@ -40,10 +54,11 @@ pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<(i32, i32)> {
         *liability += o.amount;
         td += i64::from(o.amount);
         clearing.push((o.id, o.debtor, o.creditor, o.amount));
-        // println!("{:?}", o.id);
+        // log::debug!("{:?}", o.id);
     }
+
     // for liability in &clearing {
-    //     println!("{:?}", liability);  // Test output
+    //     log::debug!("{:?}", liability);  // Test output
     // }
 
     // Add source and sink flows based on values of "b" vector
@@ -78,24 +93,25 @@ pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<(i32, i32)> {
                 tc -= i64::from(path.flows[0].amount);
             })
             .collect::<Vec<_>>();
-        // println!();  // Test output
+        // log::debug!();  // Test output
     }
+
     // for r in &liabilities {
-    //     println!("{:?}", r);    // Test output
+    //     log::debug!("{:?}", r);    // Test output
     // }
 
     // Print key results and check for correct sums
-    println!("----------------------------------");
-    println!("            NID = {nid:?}");
-    println!("     Total debt = {td:?}");
-    println!("Total remainder = {remained:?}");
-    println!("  Total cleared = {tc:?}");
+    log::debug!("----------------------------------");
+    log::debug!("            NID = {nid:?}");
+    log::debug!("     Total debt = {td:?}");
+    log::debug!("Total remainder = {remained:?}");
+    log::debug!("  Total cleared = {tc:?}");
     // assert_eq!(td, remained + tc);
 
     // Assign cleared amounts to individual obligations
     let mut res: Vec<(i32, i32)> = Vec::new();
     for o in clearing {
-        // println!("{:?} {:?}", o.0, o.3);     // Test output
+        // log::debug!("{:?} {:?}", o.0, o.3);     // Test output
         match liabilities.get(&(o.1, o.2)).unwrap() {
             0 => continue,
             x if x < &o.3 => {
