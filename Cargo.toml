@@ -12,7 +12,13 @@ description = """
     Algorithm implementations for Multilateral Trade Credit Set-off (MTCS)
 """
 
+[[bin]]
+name = "mtcs-cli"
+path = "src/cli/main.rs"
+
 [dependencies]
+csv = "1.1.6"
+clap = { version = "4.0.32", features = ["derive"] }
+log = "0.4"
 mcmf = "2.0.0"
-csv = "1.1"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
