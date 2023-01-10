@@ -1,10 +1,16 @@
 [package]
 name = "mtcs"
 version = "0.1.0"
-authors = ["Tomaž Fleischman"]
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "Apache-2.0"
+readme = "README.md"
+keywords = ["graph", "graph-algorithms", "finance"]
+categories = ["algorithms", "data-structures", "finance"]
+repository = "https://github.com/informalsystems/mtcs"
+authors = ["Informal Systems <hello@informal.systems>"]
+description = """
+    Algorithm implementations for Multilateral Trade Credit Set-off (MTCS)
+"""
 
 [dependencies]
 mcmf = "2.0.0"
