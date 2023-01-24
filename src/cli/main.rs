@@ -1,4 +1,5 @@
 #![warn(clippy::all, clippy::pedantic)]
+
 use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -8,14 +9,15 @@ use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
 use mtcs::{max_flow_network_simplex, ObligationNetwork};
 
+/// Tool for running Multilateral Trade Credit Set-off (MTCS) on an obligation network
 #[derive(Parser, Debug)]
 #[command(version, long_about = None)]
 struct Args {
-    /// Path to input file
+    /// Path to input CSV file with obligations (fields - `id`, `debtor`, `creditor`, `amount`)
     #[arg(short, long)]
     input_file: PathBuf,
 
-    /// Path to output file
+    /// Path to output CSV file
     #[arg(short, long)]
     output_file: PathBuf,
 }
@@ -43,12 +45,15 @@ fn write_csv(res: Vec<(i32, i32)>, writer: impl Write) -> Result<(), Box<dyn Err
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
-    let input_file = File::open(args.input_file)?;
 
-    // Read the obligations CSV file
+    // Read the obligations from the input CSV file
+    let input_file = File::open(args.input_file)?;
     let on = read_obligations_csv(&input_file, true);
+
+    // Run the MTCS algorithm
     let res = max_flow_network_simplex(on);
 
-    let output_file = File::open(args.output_file)?;
+    // Write the result to the output CSV file
+    let output_file = File::create(args.output_file)?;
     write_csv(res, &output_file)
 }
