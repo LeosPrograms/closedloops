@@ -9,6 +9,7 @@ use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
 use log::LevelFilter;
 use mtcs::{max_flow_network_simplex, ObligationNetwork};
+use simplelog::{Config as SimpleLoggerConfig, SimpleLogger};
 
 /// Tool for running Multilateral Trade Credit Set-off (MTCS) on an obligation network
 #[derive(Parser, Debug)]
@@ -48,12 +49,12 @@ fn write_csv(res: Vec<(i32, i32)>, writer: impl Write) -> Result<(), Box<dyn Err
     Ok(())
 }
 
-fn log_level_from_u8(level: u8) -> Option<LevelFilter> {
+fn log_level_from_u8(level: u8) -> LevelFilter {
     match level {
-        0 => Some(LevelFilter::Off),
-        1 => Some(LevelFilter::Info),
-        2 => Some(LevelFilter::Debug),
-        3.. => Some(LevelFilter::Trace),
+        0 => LevelFilter::Off,
+        1 => LevelFilter::Info,
+        2 => LevelFilter::Debug,
+        3.. => LevelFilter::Trace,
     }
 }
 
@@ -62,8 +63,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
     // Initialize the logger
-    let log_level = log_level_from_u8(args.verbose).unwrap();
-    simplelog::SimpleLogger::init(log_level, Default::default()).unwrap();
+    let log_level = log_level_from_u8(args.verbose);
+    SimpleLogger::init(log_level, SimpleLoggerConfig::default()).unwrap();
 
     // Read the obligations from the input CSV file
     let input_file = File::open(args.input_file)?;
