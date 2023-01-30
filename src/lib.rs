@@ -13,6 +13,7 @@ extern crate alloc;
 
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
+use core::cmp::Ordering;
 
 use mcmf::{Capacity, Cost, GraphBuilder, Vertex};
 use serde::{Deserialize, Serialize};
@@ -46,70 +47,62 @@ pub struct SetoffNotice {
 
 pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<SetoffNotice> {
     // Calculate the net_position "b" vector as a hashmap
-    //          liabilities
-    //          and a graph "g"
-    // Prepare the clearing as a hashmap
-    let mut net_position: BTreeMap<i32, i32> = BTreeMap::new();
-    let mut liabilities: BTreeMap<(i32, i32), i32> = BTreeMap::new();
-    let mut td: i64 = 0;
-    let mut g = GraphBuilder::new();
+    let net_position = on.rows.iter().fold(BTreeMap::new(), |mut acc, o| {
+        *acc.entry(o.debtor).or_insert(0) -= o.amount;
+        *acc.entry(o.creditor).or_insert(0) += o.amount;
+        acc
+    });
 
-    let mut clearing = Vec::new();
-    for o in on.rows {
-        g.add_edge(o.debtor, o.creditor, Capacity(o.amount), Cost(1));
-        let balance = net_position.entry(o.debtor).or_insert(0);
-        *balance -= o.amount;
-        let balance = net_position.entry(o.creditor).or_insert(0);
-        *balance += o.amount;
-        let liability = liabilities.entry((o.debtor, o.creditor)).or_insert(0);
-        *liability += o.amount;
-        td += i64::from(o.amount);
-        clearing.push((o.id, o.debtor, o.creditor, o.amount));
-        // log::debug!("{:?}", o.id);
-    }
+    // build a map of liabilities, i.e. (debtor, creditor) v/s amount
+    let mut liabilities = on.rows.iter().fold(BTreeMap::new(), |mut acc, o| {
+        *acc.entry((o.debtor, o.creditor)).or_insert(0) += o.amount;
+        acc
+    });
 
-    // for liability in &clearing {
-    //     log::debug!("{:?}", liability);  // Test output
-    // }
+    // calculate total debt
+    let td = on.rows.iter().map(|o| o.amount as i64).sum();
+
+    // build a graph from given obligation network
+    let mut g = on.rows.iter().fold(GraphBuilder::new(), |mut acc, o| {
+        acc.add_edge(o.debtor, o.creditor, Capacity(o.amount), Cost(1));
+        acc
+    });
 
     // Add source and sink flows based on values of "b" vector
-    for (&firm, balance) in &net_position {
-        match balance {
-            x if x < &0 => g.add_edge(Vertex::Source, firm, Capacity(-balance), Cost(0)),
-            x if x > &0 => g.add_edge(firm, Vertex::Sink, Capacity(*balance), Cost(0)),
-            &_ => continue,
-        };
-    }
+    net_position
+        .iter()
+        .for_each(|(&firm, balance)| match balance.cmp(&0) {
+            Ordering::Less => {
+                g.add_edge(Vertex::Source, firm, Capacity(-balance), Cost(0));
+            }
+            Ordering::Greater => {
+                g.add_edge(firm, Vertex::Sink, Capacity(*balance), Cost(0));
+            }
+            Ordering::Equal => {}
+        });
 
-    // Get the minimum cost maximum flow paths and calculate "nid"
-    let (remained, paths) = g.mcmf();
     let nid: i32 = net_position
         .into_values()
         .filter(|balance| balance > &0)
         .sum();
 
+    // Get the minimum cost maximum flow paths and calculate "nid"
+    let (remained, paths) = g.mcmf();
+
     // substract minimum cost maximum flow from the liabilities to get the clearing solution
     let mut tc: i64 = td;
-    for path in paths {
-        // print!("{:?} Flow trough: ", path.flows[0].amount);   // Test output
-        let _result = path
-            .vertices()
+    paths.into_iter().for_each(|path| {
+        path.vertices()
             .windows(2)
             .filter(|w| w[0].as_option().is_some() & w[1].as_option().is_some())
-            .inspect(|w| {
+            .for_each(|w| {
+                tc -= i64::from(path.flows[0].amount);
                 // print!("{} --> {} : ", w[0].as_option().unwrap(), w[1].as_option().unwrap());  // Test output
                 liabilities
                     .entry((w[0].as_option().unwrap(), w[1].as_option().unwrap()))
                     .and_modify(|e| *e -= i32::try_from(path.flows[0].amount).unwrap());
-                tc -= i64::from(path.flows[0].amount);
             })
-            .collect::<Vec<_>>();
-        // log::debug!();  // Test output
-    }
-
-    // for r in &liabilities {
-    //     log::debug!("{:?}", r);    // Test output
-    // }
+    });
 
     // Print key results and check for correct sums
     log::info!("----------------------------------");
@@ -120,34 +113,35 @@ pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<SetoffNotice> {
     // assert_eq!(td, remained + tc);
 
     // Assign cleared amounts to individual obligations
-    let mut res = Vec::new();
-    for o in clearing {
-        // log::debug!("{:?} {:?}", o.0, o.3);     // Test output
-        match liabilities.get(&(o.1, o.2)).unwrap() {
-            0 => continue,
-            x if x < &o.3 => {
-                res.push(SetoffNotice {
-                    id: o.0,
-                    debtor: o.1,
-                    creditor: o.2,
-                    amount: o.3,
-                    setoff: *x,
-                    remainder: o.3 - *x,
-                });
-                liabilities.entry((o.1, o.2)).and_modify(|e| *e = 0);
-            }
-            _ => {
-                liabilities.entry((o.1, o.2)).and_modify(|e| *e -= o.3);
-                res.push(SetoffNotice {
-                    id: o.0,
-                    debtor: o.1,
-                    creditor: o.2,
-                    amount: 0,
-                    setoff: o.3,
-                    remainder: 0,
-                });
-            }
-        }
-    }
-    res
+    on.rows
+        .into_iter()
+        .flat_map(
+            |o| match liabilities.get_mut(&(o.debtor, o.creditor)).unwrap() {
+                0 => None,
+                x if *x < o.amount => {
+                    let oldx = *x;
+                    *x = 0;
+                    Some(SetoffNotice {
+                        id: o.id,
+                        debtor: o.debtor,
+                        creditor: o.creditor,
+                        amount: o.amount,
+                        setoff: oldx,
+                        remainder: o.amount - oldx,
+                    })
+                }
+                x => {
+                    *x -= o.amount;
+                    Some(SetoffNotice {
+                        id: o.id,
+                        debtor: o.debtor,
+                        creditor: o.creditor,
+                        amount: 0,
+                        setoff: o.amount,
+                        remainder: 0,
+                    })
+                }
+            },
+        )
+        .collect()
 }
