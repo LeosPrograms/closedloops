@@ -15,7 +15,7 @@ use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 
-use mcmf::{Capacity, Cost, GraphBuilder, Vertex};
+use mcmf::{Capacity, Cost, GraphBuilder, Path, Vertex};
 use serde::{Deserialize, Serialize};
 
 //
@@ -45,7 +45,7 @@ pub struct SetoffNotice {
     remainder: i32,
 }
 
-pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<SetoffNotice> {
+pub fn run_algo(on: ObligationNetwork) -> Vec<SetoffNotice> {
     // Calculate the net_position "b" vector as a hashmap
     let net_position = on.rows.iter().fold(BTreeMap::new(), |mut acc, o| {
         *acc.entry(o.debtor).or_insert(0) -= o.amount;
@@ -62,32 +62,12 @@ pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<SetoffNotice> {
     // calculate total debt
     let td = on.rows.iter().map(|o| o.amount as i64).sum();
 
-    // build a graph from given obligation network
-    let mut g = on.rows.iter().fold(GraphBuilder::new(), |mut acc, o| {
-        acc.add_edge(o.debtor, o.creditor, Capacity(o.amount), Cost(1));
-        acc
-    });
-
-    // Add source and sink flows based on values of "b" vector
-    net_position
-        .iter()
-        .for_each(|(&firm, balance)| match balance.cmp(&0) {
-            Ordering::Less => {
-                g.add_edge(Vertex::Source, firm, Capacity(-balance), Cost(0));
-            }
-            Ordering::Greater => {
-                g.add_edge(firm, Vertex::Sink, Capacity(*balance), Cost(0));
-            }
-            Ordering::Equal => {}
-        });
+    let (remained, paths) = mcmf_network_simplex(&on, &net_position);
 
     let nid: i32 = net_position
         .into_values()
         .filter(|balance| balance > &0)
         .sum();
-
-    // Get the minimum cost maximum flow paths and calculate "nid"
-    let (remained, paths) = g.mcmf();
 
     // substract minimum cost maximum flow from the liabilities to get the clearing solution
     let mut tc: i64 = td;
@@ -144,4 +124,31 @@ pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<SetoffNotice> {
             },
         )
         .collect()
+}
+
+fn mcmf_network_simplex(
+    on: &ObligationNetwork,
+    net_position: &BTreeMap<i32, i32>,
+) -> (i32, Vec<Path<i32>>) {
+    // build a graph from given obligation network
+    let mut g = on.rows.iter().fold(GraphBuilder::new(), |mut acc, o| {
+        acc.add_edge(o.debtor, o.creditor, Capacity(o.amount), Cost(1));
+        acc
+    });
+
+    // Add source and sink flows based on values of "b" vector
+    net_position
+        .iter()
+        .for_each(|(&firm, balance)| match balance.cmp(&0) {
+            Ordering::Less => {
+                g.add_edge(Vertex::Source, firm, Capacity(-balance), Cost(0));
+            }
+            Ordering::Greater => {
+                g.add_edge(firm, Vertex::Sink, Capacity(*balance), Cost(0));
+            }
+            Ordering::Equal => {}
+        });
+
+    // Get the minimum cost maximum flow paths and calculate "nid"
+    g.mcmf()
 }
