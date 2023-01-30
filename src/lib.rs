@@ -101,11 +101,11 @@ pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<(i32, i32)> {
     // }
 
     // Print key results and check for correct sums
-    log::debug!("----------------------------------");
-    log::debug!("            NID = {nid:?}");
-    log::debug!("     Total debt = {td:?}");
-    log::debug!("Total remainder = {remained:?}");
-    log::debug!("  Total cleared = {tc:?}");
+    log::info!("----------------------------------");
+    log::info!("            NID = {nid:?}");
+    log::info!("     Total debt = {td:?}");
+    log::info!("Total remainder = {remained:?}");
+    log::info!("  Total cleared = {tc:?}");
     // assert_eq!(td, remained + tc);
 
     // Assign cleared amounts to individual obligations
