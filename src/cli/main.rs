@@ -37,13 +37,20 @@ fn read_obligations_csv(reader: impl Read, _has_headers: bool) -> ObligationNetw
 }
 
 // Write the clearing results to CSV file
-fn write_csv(res: Vec<(i32, i32)>, writer: impl Write) -> Result<(), Box<dyn Error>> {
+fn write_csv(
+    res: Vec<(i32, i32, i32, i32, i32)>,
+    writer: impl Write,
+) -> Result<(), Box<dyn Error>> {
     let mut wtr = CsvWriter::from_writer(writer);
-    wtr.write_record(["id", "amount"])?;
-    for obligation in res {
-        let id = obligation.0;
-        let amount = obligation.1;
-        wtr.write_record([&id.to_string(), &amount.to_string()])?;
+    wtr.write_record(["debtor", "creditor", "amount", "setoff", "remainder"])?;
+    for (debtor, creditor, amount, setoff, remainder) in res {
+        wtr.write_record([
+            &debtor.to_string(),
+            &creditor.to_string(),
+            &amount.to_string(),
+            &setoff.to_string(),
+            &remainder.to_string(),
+        ])?;
     }
     wtr.flush()?;
     Ok(())
