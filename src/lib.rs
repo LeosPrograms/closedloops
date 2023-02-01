@@ -13,7 +13,7 @@ extern crate alloc;
 
 mod algo;
 
-use alloc::collections::BTreeMap;
+use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
 
 use serde::{Deserialize, Serialize};
@@ -53,9 +53,24 @@ pub fn run_algo(on: ObligationNetwork) -> Vec<SetoffNotice> {
         acc
     });
 
-    // build a map of liabilities, i.e. (debtor, creditor) v/s amount
+    // create a list of peripheral 'head/tail' nodes (i.e. nodes which are only either creditors or
+    // debtors and therefore cannot be part of a cycle.
+    let (debtors, creditors) = on.rows.iter().fold(
+        (BTreeSet::new(), BTreeSet::new()),
+        |(mut debtors, mut creditors), o| {
+            debtors.insert(o.debtor);
+            creditors.insert(o.creditor);
+            (debtors, creditors)
+        },
+    );
+    let peripheral_nodes: Vec<_> = debtors.symmetric_difference(&creditors).collect();
+
+    // build a map of liabilities, i.e. (debtor, creditor) v/s amount, ignoring peripheral nodes and
+    // their obligations
     let mut liabilities = on.rows.iter().fold(BTreeMap::new(), |mut acc, o| {
-        *acc.entry((o.debtor, o.creditor)).or_default() += o.amount;
+        if !peripheral_nodes.contains(&&o.debtor) && !peripheral_nodes.contains(&&o.creditor) {
+            *acc.entry((o.debtor, o.creditor)).or_default() += o.amount;
+        }
         acc
     });
 
