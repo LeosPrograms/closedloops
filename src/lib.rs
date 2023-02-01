@@ -15,7 +15,7 @@ use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
 use mcmf::{Capacity, Cost, GraphBuilder, Vertex};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 //
 // Define the Obligation network
@@ -33,7 +33,16 @@ pub struct ObligationNetwork {
     pub rows: Vec<Obligation>,
 }
 
-pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<(i32, i32, i32, i32, i32)> {
+#[derive(Clone, Debug, Serialize)]
+pub struct SetoffNotice {
+    debtor: i32,
+    creditor: i32,
+    amount: i32,
+    setoff: i32,
+    remainder: i32,
+}
+
+pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<SetoffNotice> {
     // Calculate the net_position "b" vector as a hashmap
     //          liabilities
     //          and a graph "g"
@@ -115,12 +124,24 @@ pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<(i32, i32, i32, i3
         match liabilities.get(&(o.1, o.2)).unwrap() {
             0 => continue,
             x if x < &o.3 => {
-                res.push((o.1, o.2, o.3, *x, o.3 - *x));
+                res.push(SetoffNotice {
+                    debtor: o.1,
+                    creditor: o.2,
+                    amount: o.3,
+                    setoff: *x,
+                    remainder: o.3 - *x,
+                });
                 liabilities.entry((o.1, o.2)).and_modify(|e| *e = 0);
             }
             _ => {
                 liabilities.entry((o.1, o.2)).and_modify(|e| *e -= o.3);
-                res.push((o.1, o.2, 0, o.3, 0));
+                res.push(SetoffNotice {
+                    debtor: o.1,
+                    creditor: o.2,
+                    amount: 0,
+                    setoff: o.3,
+                    remainder: 0,
+                });
             }
         }
     }

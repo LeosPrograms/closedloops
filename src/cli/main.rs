@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
 use log::LevelFilter;
-use mtcs::{max_flow_network_simplex, ObligationNetwork};
+use mtcs::{max_flow_network_simplex, ObligationNetwork, SetoffNotice};
 use simplelog::{Config as SimpleLoggerConfig, SimpleLogger};
 
 /// Tool for running Multilateral Trade Credit Set-off (MTCS) on an obligation network
@@ -37,20 +37,10 @@ fn read_obligations_csv(reader: impl Read, _has_headers: bool) -> ObligationNetw
 }
 
 // Write the clearing results to CSV file
-fn write_csv(
-    res: Vec<(i32, i32, i32, i32, i32)>,
-    writer: impl Write,
-) -> Result<(), Box<dyn Error>> {
+fn write_csv(res: Vec<SetoffNotice>, writer: impl Write) -> Result<(), Box<dyn Error>> {
     let mut wtr = CsvWriter::from_writer(writer);
-    wtr.write_record(["debtor", "creditor", "amount", "setoff", "remainder"])?;
-    for (debtor, creditor, amount, setoff, remainder) in res {
-        wtr.write_record([
-            &debtor.to_string(),
-            &creditor.to_string(),
-            &amount.to_string(),
-            &setoff.to_string(),
-            &remainder.to_string(),
-        ])?;
+    for setoff in res {
+        wtr.serialize(setoff)?
     }
     wtr.flush()?;
     Ok(())
