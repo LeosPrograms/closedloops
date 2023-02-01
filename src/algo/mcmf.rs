@@ -4,17 +4,18 @@ use core::cmp::Ordering;
 
 use mcmf::{Capacity, Cost, GraphBuilder, Path, Vertex};
 
-use crate::ObligationNetwork;
-
 pub(crate) fn network_simplex(
-    on: &ObligationNetwork,
+    liabilities: &BTreeMap<(i32, i32), i32>,
     net_position: &BTreeMap<i32, i32>,
 ) -> (i32, Vec<Path<i32>>) {
     // build a graph from given obligation network
-    let mut g = on.rows.iter().fold(GraphBuilder::new(), |mut acc, o| {
-        acc.add_edge(o.debtor, o.creditor, Capacity(o.amount), Cost(1));
-        acc
-    });
+    let mut g = liabilities.iter().fold(
+        GraphBuilder::new(),
+        |mut acc, ((debtor, creditor), amount)| {
+            acc.add_edge(*debtor, *creditor, Capacity(*amount), Cost(1));
+            acc
+        },
+    );
 
     // Add source and sink flows based on values of "b" vector
     net_position

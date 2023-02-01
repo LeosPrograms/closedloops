@@ -63,7 +63,7 @@ pub fn run_algo(on: ObligationNetwork) -> Vec<SetoffNotice> {
     let td = on.rows.iter().map(|o| o.amount as i64).sum();
 
     // run the (min-cost) max-flow algo
-    let (remained, paths) = algo::mcmf::network_simplex(&on, &net_position);
+    let (remained, paths) = algo::mcmf::network_simplex(&liabilities, &net_position);
 
     let nid: i32 = net_position
         .into_values()
