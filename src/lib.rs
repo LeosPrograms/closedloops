@@ -48,14 +48,14 @@ pub struct SetoffNotice {
 pub fn run_algo(on: ObligationNetwork) -> Vec<SetoffNotice> {
     // Calculate the net_position "b" vector as a hashmap
     let net_position = on.rows.iter().fold(BTreeMap::new(), |mut acc, o| {
-        *acc.entry(o.debtor).or_insert(0) -= o.amount;
-        *acc.entry(o.creditor).or_insert(0) += o.amount;
+        *acc.entry(o.debtor).or_default() -= o.amount;
+        *acc.entry(o.creditor).or_default() += o.amount;
         acc
     });
 
     // build a map of liabilities, i.e. (debtor, creditor) v/s amount
     let mut liabilities = on.rows.iter().fold(BTreeMap::new(), |mut acc, o| {
-        *acc.entry((o.debtor, o.creditor)).or_insert(0) += o.amount;
+        *acc.entry((o.debtor, o.creditor)).or_default() += o.amount;
         acc
     });
 
