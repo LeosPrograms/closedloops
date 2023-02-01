@@ -15,14 +15,14 @@ use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
 use mcmf::{Capacity, Cost, GraphBuilder, Vertex};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 //
 // Define the Obligation network
 //
 #[derive(Clone, Debug, Deserialize)]
 pub struct Obligation {
-    id: i32,
+    id: Option<i32>,
     debtor: i32,
     creditor: i32,
     amount: i32,
@@ -33,7 +33,18 @@ pub struct ObligationNetwork {
     pub rows: Vec<Obligation>,
 }
 
-pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<(i32, i32)> {
+#[derive(Clone, Debug, Serialize)]
+pub struct SetoffNotice {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<i32>,
+    debtor: i32,
+    creditor: i32,
+    amount: i32,
+    setoff: i32,
+    remainder: i32,
+}
+
+pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<SetoffNotice> {
     // Calculate the net_position "b" vector as a hashmap
     //          liabilities
     //          and a graph "g"
@@ -101,26 +112,40 @@ pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<(i32, i32)> {
     // }
 
     // Print key results and check for correct sums
-    log::debug!("----------------------------------");
-    log::debug!("            NID = {nid:?}");
-    log::debug!("     Total debt = {td:?}");
-    log::debug!("Total remainder = {remained:?}");
-    log::debug!("  Total cleared = {tc:?}");
+    log::info!("----------------------------------");
+    log::info!("            NID = {nid:?}");
+    log::info!("     Total debt = {td:?}");
+    log::info!("Total remainder = {remained:?}");
+    log::info!("  Total cleared = {tc:?}");
     // assert_eq!(td, remained + tc);
 
     // Assign cleared amounts to individual obligations
-    let mut res: Vec<(i32, i32)> = Vec::new();
+    let mut res = Vec::new();
     for o in clearing {
         // log::debug!("{:?} {:?}", o.0, o.3);     // Test output
         match liabilities.get(&(o.1, o.2)).unwrap() {
             0 => continue,
             x if x < &o.3 => {
-                res.push((o.0, *liabilities.get(&(o.1, o.2)).unwrap()));
+                res.push(SetoffNotice {
+                    id: o.0,
+                    debtor: o.1,
+                    creditor: o.2,
+                    amount: o.3,
+                    setoff: *x,
+                    remainder: o.3 - *x,
+                });
                 liabilities.entry((o.1, o.2)).and_modify(|e| *e = 0);
             }
             _ => {
                 liabilities.entry((o.1, o.2)).and_modify(|e| *e -= o.3);
-                res.push((o.0, o.3));
+                res.push(SetoffNotice {
+                    id: o.0,
+                    debtor: o.1,
+                    creditor: o.2,
+                    amount: 0,
+                    setoff: o.3,
+                    remainder: 0,
+                });
             }
         }
     }

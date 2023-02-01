@@ -19,16 +19,17 @@ This repository hosts the `mtcs` rust crate which provides -
 $ cargo run -- --help
 Tool for running Multilateral Trade Credit Set-off (MTCS) on an obligation network
 
-Usage: mtcs-cli --input-file <INPUT_FILE> --output-file <OUTPUT_FILE>
+Usage: mtcs-cli [OPTIONS] --input-file <INPUT_FILE> --output-file <OUTPUT_FILE>
 
 Options:
-  -i, --input-file <INPUT_FILE>    Path to input CSV file with obligations (fields - `id`, `debtor`, `creditor`, `amount`)
+  -i, --input-file <INPUT_FILE>    Path to input CSV file with obligations (fields - `id` (optional), `debtor`, `creditor`, `amount`)
   -o, --output-file <OUTPUT_FILE>  Path to output CSV file
+  -v, --verbose...                 Log level
   -h, --help                       Print help information
   -V, --version                    Print version information
 ```
 
-The input is expected to be a CSV file containing a list of obligations with the following header fields - `id`, `debtor`, `creditor` & `amount`. For example -
+The input is expected to be a CSV file containing a list of obligations with the following header fields - `id` (optional), `debtor`, `creditor` & `amount`. For example -
 
 ```shell
 $ cat data/micro.csv
@@ -45,10 +46,10 @@ example -
 ```shell
 $ cargo run -- --input-file data/micro.csv --output-file micro-set-offs.csv
 $ cat micro-set-offs.csv
-id,amount
-1,100
-2,100
-3,100
+debtor,creditor,amount,setoff,remainder
+10,20,0,100,0
+20,30,0,100,0
+30,10,200,100,100
 ```
 
 ## Contributing

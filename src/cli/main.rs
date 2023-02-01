@@ -7,19 +7,25 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
-use mtcs::{max_flow_network_simplex, ObligationNetwork};
+use log::LevelFilter;
+use mtcs::{max_flow_network_simplex, ObligationNetwork, SetoffNotice};
+use simplelog::{Config as SimpleLoggerConfig, SimpleLogger};
 
 /// Tool for running Multilateral Trade Credit Set-off (MTCS) on an obligation network
 #[derive(Parser, Debug)]
 #[command(version, long_about = None)]
 struct Args {
-    /// Path to input CSV file with obligations (fields - `id`, `debtor`, `creditor`, `amount`)
+    /// Path to input CSV file with obligations (fields - `id` (optional), `debtor`, `creditor`, `amount`)
     #[arg(short, long)]
     input_file: PathBuf,
 
     /// Path to output CSV file
     #[arg(short, long)]
     output_file: PathBuf,
+
+    /// Log level
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    verbose: u8,
 }
 
 // Read the obligations from CSV file
@@ -31,20 +37,31 @@ fn read_obligations_csv(reader: impl Read, _has_headers: bool) -> ObligationNetw
 }
 
 // Write the clearing results to CSV file
-fn write_csv(res: Vec<(i32, i32)>, writer: impl Write) -> Result<(), Box<dyn Error>> {
+fn write_csv(res: Vec<SetoffNotice>, writer: impl Write) -> Result<(), Box<dyn Error>> {
     let mut wtr = CsvWriter::from_writer(writer);
-    wtr.write_record(["id", "amount"])?;
-    for obligation in res {
-        let id = obligation.0;
-        let amount = obligation.1;
-        wtr.write_record([&id.to_string(), &amount.to_string()])?;
+    for setoff in res {
+        wtr.serialize(setoff)?;
     }
     wtr.flush()?;
     Ok(())
 }
 
+fn log_level_from_u8(level: u8) -> LevelFilter {
+    match level {
+        0 => LevelFilter::Off,
+        1 => LevelFilter::Info,
+        2 => LevelFilter::Debug,
+        3.. => LevelFilter::Trace,
+    }
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
+    // Parse CLI args
     let args = Args::parse();
+
+    // Initialize the logger
+    let log_level = log_level_from_u8(args.verbose);
+    SimpleLogger::init(log_level, SimpleLoggerConfig::default()).unwrap();
 
     // Read the obligations from the input CSV file
     let input_file = File::open(args.input_file)?;
