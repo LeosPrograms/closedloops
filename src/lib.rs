@@ -35,6 +35,8 @@ pub struct ObligationNetwork {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct SetoffNotice {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<i32>,
     debtor: i32,
     creditor: i32,
     amount: i32,
@@ -125,6 +127,7 @@ pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<SetoffNotice> {
             0 => continue,
             x if x < &o.3 => {
                 res.push(SetoffNotice {
+                    id: o.0,
                     debtor: o.1,
                     creditor: o.2,
                     amount: o.3,
@@ -136,6 +139,7 @@ pub fn max_flow_network_simplex(on: ObligationNetwork) -> Vec<SetoffNotice> {
             _ => {
                 liabilities.entry((o.1, o.2)).and_modify(|e| *e -= o.3);
                 res.push(SetoffNotice {
+                    id: o.0,
                     debtor: o.1,
                     creditor: o.2,
                     amount: 0,
