@@ -15,7 +15,7 @@ use simplelog::{Config as SimpleLoggerConfig, SimpleLogger};
 #[derive(Parser, Debug)]
 #[command(version, long_about = None)]
 struct Args {
-    /// Path to input CSV file with obligations (fields - `id`, `debtor`, `creditor`, `amount`)
+    /// Path to input CSV file with obligations (fields - `id` (optional), `debtor`, `creditor`, `amount`)
     #[arg(short, long)]
     input_file: PathBuf,
 

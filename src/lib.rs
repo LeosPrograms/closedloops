@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 //
 #[derive(Clone, Debug, Deserialize)]
 pub struct Obligation {
-    id: i32,
+    id: Option<i32>,
     debtor: i32,
     creditor: i32,
     amount: i32,
