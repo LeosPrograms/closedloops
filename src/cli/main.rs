@@ -40,7 +40,7 @@ fn read_obligations_csv(reader: impl Read, _has_headers: bool) -> ObligationNetw
 fn write_csv(res: Vec<SetoffNotice>, writer: impl Write) -> Result<(), Box<dyn Error>> {
     let mut wtr = CsvWriter::from_writer(writer);
     for setoff in res {
-        wtr.serialize(setoff)?
+        wtr.serialize(setoff)?;
     }
     wtr.flush()?;
     Ok(())
