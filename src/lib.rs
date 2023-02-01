@@ -46,10 +46,10 @@ pub struct SetoffNotice {
 }
 
 pub fn run_algo(on: ObligationNetwork) -> Vec<SetoffNotice> {
-    // Calculate the net_position "b" vector as a hashmap
+    // calculate the b vector
     let net_position = on.rows.iter().fold(BTreeMap::new(), |mut acc, o| {
-        *acc.entry(o.debtor).or_default() -= o.amount;
-        *acc.entry(o.creditor).or_default() += o.amount;
+        *acc.entry(o.creditor).or_default() += o.amount; // credit increases the net balance
+        *acc.entry(o.debtor).or_default() -= o.amount; // debit decreases the net balance
         acc
     });
 
@@ -80,6 +80,7 @@ pub fn run_algo(on: ObligationNetwork) -> Vec<SetoffNotice> {
     // run the (min-cost) max-flow algo
     let (remained, paths) = algo::mcmf::network_simplex(&liabilities, &net_position);
 
+    // calculate Net Internal Debt (NID) from the b vector
     let nid: i32 = net_position
         .into_values()
         .filter(|balance| balance > &0)
@@ -92,8 +93,13 @@ pub fn run_algo(on: ObligationNetwork) -> Vec<SetoffNotice> {
             .windows(2)
             .filter(|w| w[0].as_option().is_some() & w[1].as_option().is_some())
             .for_each(|w| {
+                log::trace!(
+                    "{} --> {}",
+                    w[0].as_option().unwrap(),
+                    w[1].as_option().unwrap()
+                );
+
                 tc -= i64::from(path.flows[0].amount);
-                // print!("{} --> {} : ", w[0].as_option().unwrap(), w[1].as_option().unwrap());  // Test output
                 liabilities
                     .entry((w[0].as_option().unwrap(), w[1].as_option().unwrap()))
                     .and_modify(|e| *e -= i32::try_from(path.flows[0].amount).unwrap());
