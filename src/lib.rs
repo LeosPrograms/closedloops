@@ -16,17 +16,60 @@ mod algo;
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
 
+use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 
 //
 // Define the Obligation network
 //
 #[derive(Clone, Debug, Deserialize)]
+#[serde(try_from = "RawObligation")]
 pub struct Obligation {
     id: Option<i32>,
     debtor: i32,
     creditor: i32,
     amount: i32,
+}
+
+#[derive(Clone, Display)]
+pub enum Error {
+    /// Invalid obligation where debtor and creditor are the same: `{debtor}`
+    ObligationToSelf { debtor: i32 },
+    /// Invalid obligation amount: `{amount}`, expected positive value
+    NonPositiveAmount { amount: i32 },
+}
+
+impl Obligation {
+    pub fn new(id: Option<i32>, debtor: i32, creditor: i32, amount: i32) -> Result<Self, Error> {
+        if debtor == creditor {
+            Err(Error::ObligationToSelf { debtor })
+        } else if amount <= 0 {
+            Err(Error::NonPositiveAmount { amount })
+        } else {
+            Ok(Self {
+                id,
+                debtor,
+                creditor,
+                amount,
+            })
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct RawObligation {
+    id: Option<i32>,
+    debtor: i32,
+    creditor: i32,
+    amount: i32,
+}
+
+impl TryFrom<RawObligation> for Obligation {
+    type Error = Error;
+
+    fn try_from(o: RawObligation) -> Result<Self, Self::Error> {
+        Self::new(o.id, o.debtor, o.creditor, o.amount)
+    }
 }
 
 #[derive(Clone, Debug, Default)]
