@@ -114,6 +114,22 @@ pub fn run_algo(on: ObligationNetwork) -> Vec<SetoffNotice> {
     log::info!("  Total cleared = {tc:?}");
     // assert_eq!(td, remained + tc);
 
+    // check that all remainders are zero
+    let remainders = on.rows.iter().fold(BTreeMap::new(), |mut acc, o| {
+        let flow = liabilities.get(&(o.debtor, o.creditor)).unwrap();
+        let remainder = if *flow > o.amount {
+            *flow - o.amount
+        } else {
+            0
+        };
+        if acc.contains_key(&(o.debtor, o.creditor)) {
+            acc.remove(&(o.debtor, o.creditor));
+        }
+        acc.insert((o.debtor, o.creditor), remainder);
+        acc
+    });
+    assert!(remainders.into_iter().all(|(_, remainder)| remainder == 0));
+
     // Assign cleared amounts to individual obligations
     on.rows
         .into_iter()
