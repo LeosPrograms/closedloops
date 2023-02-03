@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 //
 // Define the Obligation network
 //
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(try_from = "RawObligation")]
 pub struct Obligation {
     id: Option<i32>,
@@ -56,12 +56,12 @@ impl Obligation {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 pub struct RawObligation {
-    id: Option<i32>,
-    debtor: i32,
-    creditor: i32,
-    amount: i32,
+    pub id: Option<i32>,
+    pub debtor: i32,
+    pub creditor: i32,
+    pub amount: i32,
 }
 
 impl TryFrom<RawObligation> for Obligation {
@@ -72,12 +72,12 @@ impl TryFrom<RawObligation> for Obligation {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ObligationNetwork {
     pub rows: Vec<Obligation>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct SetoffNotice {
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<i32>,
