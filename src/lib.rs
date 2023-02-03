@@ -88,7 +88,7 @@ pub struct SetoffNotice {
     remainder: i32,
 }
 
-pub fn run_algo(on: ObligationNetwork) -> Vec<SetoffNotice> {
+pub fn run(on: ObligationNetwork) -> Vec<SetoffNotice> {
     // calculate the b vector
     let net_position = on.rows.iter().fold(BTreeMap::new(), |mut acc, o| {
         *acc.entry(o.creditor).or_default() += o.amount; // credit increases the net balance

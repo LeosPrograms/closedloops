@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
 use log::LevelFilter;
-use mtcs::{run_algo, ObligationNetwork, SetoffNotice};
+use mtcs::{check, run, ObligationNetwork, SetoffNotice};
 use simplelog::{Config as SimpleLoggerConfig, SimpleLogger};
 
 /// Tool for running Multilateral Trade Credit Set-off (MTCS) on an obligation network
@@ -68,7 +68,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let on = read_obligations_csv(&input_file, true);
 
     // Run the MTCS algorithm
-    let res = run_algo(on);
+    let res = run(on);
+    check(&res);
 
     // Write the result to the output CSV file
     let output_file = File::create(args.output_file)?;
