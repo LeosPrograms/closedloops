@@ -110,10 +110,12 @@ pub fn run_algo(on: ObligationNetwork) -> Vec<SetoffNotice> {
 
     // build a map of liabilities, i.e. (debtor, creditor) v/s amount, ignoring peripheral nodes and
     // their obligations
-    let mut liabilities = on.rows.iter().fold(BTreeMap::new(), |mut acc, o| {
-        if !peripheral_nodes.contains(&&o.debtor) && !peripheral_nodes.contains(&&o.creditor) {
-            *acc.entry((o.debtor, o.creditor)).or_default() += o.amount;
-        }
+    let (heads_tails, liabilities): (Vec<_>, Vec<_>) = on.rows.iter().partition(|o| {
+        peripheral_nodes.contains(&&o.debtor) && peripheral_nodes.contains(&&o.creditor)
+    });
+
+    let mut liabilities = liabilities.into_iter().fold(BTreeMap::new(), |mut acc, o| {
+        *acc.entry((o.debtor, o.creditor)).or_default() += o.amount;
         acc
     });
 
@@ -156,6 +158,12 @@ pub fn run_algo(on: ObligationNetwork) -> Vec<SetoffNotice> {
     log::info!("Total remainder = {remained:?}");
     log::info!("  Total cleared = {tc:?}");
     // assert_eq!(td, remained + tc);
+
+    // add heads and tails back
+    let mut liabilities = heads_tails.into_iter().fold(liabilities, |mut acc, o| {
+        *acc.entry((o.debtor, o.creditor)).or_default() += o.amount;
+        acc
+    });
 
     // check that all remainders are zero
     let remainders = on.rows.iter().fold(BTreeMap::new(), |mut acc, o| {
