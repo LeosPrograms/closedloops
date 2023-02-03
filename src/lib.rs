@@ -214,3 +214,74 @@ pub fn run_algo(on: ObligationNetwork) -> Vec<SetoffNotice> {
         )
         .collect()
 }
+
+pub fn check(setoffs: &[SetoffNotice]) {
+    // ba - net balance positions of the obligation network
+    let ba = setoffs.iter().fold(
+        BTreeMap::<i32, i32>::new(),
+        |mut acc,
+         SetoffNotice {
+             debtor,
+             creditor,
+             amount,
+             ..
+         }| {
+            *acc.entry(*creditor).or_default() += *amount;
+            *acc.entry(*debtor).or_default() -= *amount;
+            acc
+        },
+    );
+
+    // bl - net balance positions of the remaining acyclic network
+    let bl = setoffs.iter().fold(
+        BTreeMap::<i32, i32>::new(),
+        |mut acc,
+         SetoffNotice {
+             debtor,
+             creditor,
+             remainder,
+             ..
+         }| {
+            *acc.entry(*creditor).or_default() += *remainder;
+            *acc.entry(*debtor).or_default() -= *remainder;
+            acc
+        },
+    );
+
+    ba.iter().all(|(firm, amount)| amount == &bl[firm]);
+
+    // bc - net balance positions of the cyclic network
+    let bc = setoffs.iter().fold(
+        BTreeMap::<i32, i32>::new(),
+        |mut acc,
+         SetoffNotice {
+             debtor,
+             creditor,
+             setoff,
+             ..
+         }| {
+            *acc.entry(*creditor).or_default() += *setoff;
+            *acc.entry(*debtor).or_default() -= *setoff;
+            acc
+        },
+    );
+
+    let ba_len = ba.len();
+    let nid_a: i32 = ba.into_values().filter(|amount| amount > &0).sum();
+    let nid_c: i32 = bc.into_values().filter(|amount| amount > &0).sum();
+    let nid_l: i32 = bl.into_values().filter(|amount| amount > &0).sum();
+
+    let debt_before: i32 = setoffs.iter().map(|s| s.amount).sum();
+    let debt_after: i32 = setoffs.iter().map(|s| s.setoff).sum();
+    let compensated: i32 = setoffs.iter().map(|s| s.remainder).sum();
+
+    log::debug!("num of companies: {ba_len}");
+    log::debug!("      NID before: {nid_a}");
+    log::debug!(" NID compensated: {nid_c}");
+    log::debug!("       NID after: {nid_l}");
+    log::debug!("     Debt before: {debt_before}");
+    log::debug!(" Debt after + Co: {}", debt_after + compensated);
+    log::debug!("         Cleared: {compensated}");
+    log::debug!("      Debt after: {debt_after}");
+    log::debug!("Debt before - Co: {}", debt_before - compensated);
+}
