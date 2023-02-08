@@ -17,6 +17,7 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
 
 use displaydoc::Display;
+use num_traits::Zero;
 use serde::{Deserialize, Serialize};
 
 //
@@ -34,28 +35,41 @@ pub trait ObligationTrait {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
-#[serde(try_from = "RawObligation")]
-pub struct Obligation {
+#[serde(
+    try_from = "RawObligation<AccountId, Amount>",
+    bound(deserialize = "AccountId: PartialEq + Deserialize<'de>, \
+                    Amount: Zero + PartialOrd + Deserialize<'de>")
+)]
+pub struct Obligation<AccountId, Amount> {
     id: Option<usize>,
-    debtor: i32,
-    creditor: i32,
-    amount: i32,
+    debtor: AccountId,
+    creditor: AccountId,
+    amount: Amount,
 }
 
 #[derive(Clone, Display)]
 pub enum Error {
-    /// Invalid obligation where debtor and creditor are the same: `{debtor}`
-    ObligationToSelf { debtor: i32 },
-    /// Invalid obligation amount: `{amount}`, expected positive value
-    NonPositiveAmount { amount: i32 },
+    /// Invalid obligation where debtor and creditor are the same
+    ObligationToSelf,
+    /// Invalid obligation amount, expected positive value
+    NonPositiveAmount,
 }
 
-impl Obligation {
-    pub fn new(id: Option<usize>, debtor: i32, creditor: i32, amount: i32) -> Result<Self, Error> {
+impl<AccountId, Amount> Obligation<AccountId, Amount>
+where
+    AccountId: PartialEq,
+    Amount: Zero + PartialOrd,
+{
+    pub fn new(
+        id: Option<usize>,
+        debtor: AccountId,
+        creditor: AccountId,
+        amount: Amount,
+    ) -> Result<Self, Error> {
         if debtor == creditor {
-            Err(Error::ObligationToSelf { debtor })
-        } else if amount <= 0 {
-            Err(Error::NonPositiveAmount { amount })
+            Err(Error::ObligationToSelf)
+        } else if amount <= Amount::zero() {
+            Err(Error::NonPositiveAmount)
         } else {
             Ok(Self {
                 id,
@@ -67,9 +81,13 @@ impl Obligation {
     }
 }
 
-impl ObligationTrait for Obligation {
-    type AccountId = i32;
-    type Amount = i32;
+impl<AccountId, Amount> ObligationTrait for Obligation<AccountId, Amount>
+where
+    AccountId: Copy,
+    Amount: Copy,
+{
+    type AccountId = AccountId;
+    type Amount = Amount;
 
     fn id(&self) -> Option<usize> {
         self.id
@@ -89,24 +107,28 @@ impl ObligationTrait for Obligation {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
-pub struct RawObligation {
+pub struct RawObligation<AccountId, Amount> {
     pub id: Option<usize>,
-    pub debtor: i32,
-    pub creditor: i32,
-    pub amount: i32,
+    pub debtor: AccountId,
+    pub creditor: AccountId,
+    pub amount: Amount,
 }
 
-impl TryFrom<RawObligation> for Obligation {
+impl<AccountId, Amount> TryFrom<RawObligation<AccountId, Amount>> for Obligation<AccountId, Amount>
+where
+    AccountId: PartialEq,
+    Amount: Zero + PartialOrd,
+{
     type Error = Error;
 
-    fn try_from(o: RawObligation) -> Result<Self, Self::Error> {
+    fn try_from(o: RawObligation<AccountId, Amount>) -> Result<Self, Self::Error> {
         Self::new(o.id, o.debtor, o.creditor, o.amount)
     }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ObligationNetwork {
-    pub rows: Vec<Obligation>,
+    pub rows: Vec<Obligation<i32, i32>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
