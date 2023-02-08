@@ -24,11 +24,10 @@ use serde::{Deserialize, Serialize};
 //
 
 pub trait ObligationTrait {
-    type Id;
     type AccountId;
     type Amount;
 
-    fn id(&self) -> Option<Self::Id>;
+    fn id(&self) -> Option<usize>;
     fn debtor(&self) -> Self::AccountId;
     fn creditor(&self) -> Self::AccountId;
     fn amount(&self) -> Self::Amount;
@@ -37,7 +36,7 @@ pub trait ObligationTrait {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(try_from = "RawObligation")]
 pub struct Obligation {
-    id: Option<i32>,
+    id: Option<usize>,
     debtor: i32,
     creditor: i32,
     amount: i32,
@@ -52,7 +51,7 @@ pub enum Error {
 }
 
 impl Obligation {
-    pub fn new(id: Option<i32>, debtor: i32, creditor: i32, amount: i32) -> Result<Self, Error> {
+    pub fn new(id: Option<usize>, debtor: i32, creditor: i32, amount: i32) -> Result<Self, Error> {
         if debtor == creditor {
             Err(Error::ObligationToSelf { debtor })
         } else if amount <= 0 {
@@ -69,11 +68,10 @@ impl Obligation {
 }
 
 impl ObligationTrait for Obligation {
-    type Id = i32;
     type AccountId = i32;
     type Amount = i32;
 
-    fn id(&self) -> Option<Self::Id> {
+    fn id(&self) -> Option<usize> {
         self.id
     }
 
@@ -92,7 +90,7 @@ impl ObligationTrait for Obligation {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 pub struct RawObligation {
-    pub id: Option<i32>,
+    pub id: Option<usize>,
     pub debtor: i32,
     pub creditor: i32,
     pub amount: i32,
@@ -114,7 +112,7 @@ pub struct ObligationNetwork {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct SetoffNotice {
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<i32>,
+    id: Option<usize>,
     debtor: i32,
     creditor: i32,
     amount: i32,
@@ -124,7 +122,7 @@ pub struct SetoffNotice {
 
 pub fn run<'a, O, ON>(on: ON) -> Vec<SetoffNotice>
 where
-    O: 'a + ObligationTrait<Id = i32, Amount = i32, AccountId = i32>,
+    O: 'a + ObligationTrait<Amount = i32, AccountId = i32>,
     ON: IntoIterator<Item = &'a O>,
     <ON as IntoIterator>::IntoIter: Clone,
 {
