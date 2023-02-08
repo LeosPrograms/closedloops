@@ -111,7 +111,7 @@ pub fn run(on: ObligationNetwork) -> Vec<SetoffNotice> {
     // build a map of liabilities, i.e. (debtor, creditor) v/s amount, ignoring peripheral nodes and
     // their obligations
     let (heads_tails, liabilities): (Vec<_>, Vec<_>) = on.rows.iter().partition(|o| {
-        peripheral_nodes.contains(&&o.debtor) && peripheral_nodes.contains(&&o.creditor)
+        peripheral_nodes.contains(&&o.debtor) || peripheral_nodes.contains(&&o.creditor)
     });
 
     let mut liabilities = liabilities.into_iter().fold(BTreeMap::new(), |mut acc, o| {
