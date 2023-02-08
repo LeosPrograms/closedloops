@@ -22,6 +22,18 @@ use serde::{Deserialize, Serialize};
 //
 // Define the Obligation network
 //
+
+pub trait ObligationTrait {
+    type Id;
+    type AccountId;
+    type Amount;
+
+    fn id(&self) -> Option<Self::Id>;
+    fn debtor(&self) -> Self::AccountId;
+    fn creditor(&self) -> Self::AccountId;
+    fn amount(&self) -> Self::Amount;
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(try_from = "RawObligation")]
 pub struct Obligation {
@@ -53,6 +65,28 @@ impl Obligation {
                 amount,
             })
         }
+    }
+}
+
+impl ObligationTrait for Obligation {
+    type Id = i32;
+    type AccountId = i32;
+    type Amount = i32;
+
+    fn id(&self) -> Option<Self::Id> {
+        self.id
+    }
+
+    fn debtor(&self) -> Self::AccountId {
+        self.debtor
+    }
+
+    fn creditor(&self) -> Self::AccountId {
+        self.creditor
+    }
+
+    fn amount(&self) -> Self::Amount {
+        self.amount
     }
 }
 
@@ -88,21 +122,28 @@ pub struct SetoffNotice {
     remainder: i32,
 }
 
-pub fn run(on: ObligationNetwork) -> Vec<SetoffNotice> {
+pub fn run<'a, O, ON>(on: ON) -> Vec<SetoffNotice>
+where
+    O: 'a + ObligationTrait<Id = i32, Amount = i32, AccountId = i32>,
+    ON: IntoIterator<Item = &'a O>,
+    <ON as IntoIterator>::IntoIter: Clone,
+{
+    let on_iter = on.into_iter();
+
     // calculate the b vector
-    let net_position = on.rows.iter().fold(BTreeMap::new(), |mut acc, o| {
-        *acc.entry(o.creditor).or_default() += o.amount; // credit increases the net balance
-        *acc.entry(o.debtor).or_default() -= o.amount; // debit decreases the net balance
+    let net_position = on_iter.clone().fold(BTreeMap::new(), |mut acc, o| {
+        *acc.entry(o.creditor()).or_default() += o.amount(); // credit increases the net balance
+        *acc.entry(o.debtor()).or_default() -= o.amount(); // debit decreases the net balance
         acc
     });
 
     // create a list of peripheral 'head/tail' nodes (i.e. nodes which are only either creditors or
     // debtors and therefore cannot be part of a cycle.
-    let (debtors, creditors) = on.rows.iter().fold(
+    let (debtors, creditors) = on_iter.clone().fold(
         (BTreeSet::new(), BTreeSet::new()),
         |(mut debtors, mut creditors), o| {
-            debtors.insert(o.debtor);
-            creditors.insert(o.creditor);
+            debtors.insert(o.debtor());
+            creditors.insert(o.creditor());
             (debtors, creditors)
         },
     );
@@ -110,17 +151,17 @@ pub fn run(on: ObligationNetwork) -> Vec<SetoffNotice> {
 
     // build a map of liabilities, i.e. (debtor, creditor) v/s amount, ignoring peripheral nodes and
     // their obligations
-    let (heads_tails, liabilities): (Vec<_>, Vec<_>) = on.rows.iter().partition(|o| {
-        peripheral_nodes.contains(&&o.debtor) || peripheral_nodes.contains(&&o.creditor)
+    let (heads_tails, liabilities): (Vec<_>, Vec<_>) = on_iter.clone().partition(|o| {
+        peripheral_nodes.contains(&&o.debtor()) || peripheral_nodes.contains(&&o.creditor())
     });
 
     let mut liabilities = liabilities.into_iter().fold(BTreeMap::new(), |mut acc, o| {
-        *acc.entry((o.debtor, o.creditor)).or_default() += o.amount;
+        *acc.entry((o.debtor(), o.creditor())).or_default() += o.amount();
         acc
     });
 
     // calculate total debt
-    let td = on.rows.iter().map(|o| o.amount as i64).sum();
+    let td = on_iter.clone().map(|o| o.amount() as i64).sum();
 
     // run the (min-cost) max-flow algo
     let (remained, paths) = algo::mcmf::network_simplex(&liabilities, &net_position);
@@ -161,52 +202,52 @@ pub fn run(on: ObligationNetwork) -> Vec<SetoffNotice> {
 
     // add heads and tails back
     let mut liabilities = heads_tails.into_iter().fold(liabilities, |mut acc, o| {
-        *acc.entry((o.debtor, o.creditor)).or_default() += o.amount;
+        *acc.entry((o.debtor(), o.creditor())).or_default() += o.amount();
         acc
     });
 
     // check that all remainders are zero
-    let remainders = on.rows.iter().fold(BTreeMap::new(), |mut acc, o| {
-        let flow = liabilities.get(&(o.debtor, o.creditor)).unwrap();
-        let remainder = if *flow > o.amount {
-            *flow - o.amount
+    let remainders = on_iter.clone().fold(BTreeMap::new(), |mut acc, o| {
+        let flow = liabilities.get(&(o.debtor(), o.creditor())).unwrap();
+        let remainder = if *flow > o.amount() {
+            *flow - o.amount()
         } else {
             0
         };
-        if acc.contains_key(&(o.debtor, o.creditor)) {
-            acc.remove(&(o.debtor, o.creditor));
+        if acc.contains_key(&(o.debtor(), o.creditor())) {
+            acc.remove(&(o.debtor(), o.creditor()));
         }
-        acc.insert((o.debtor, o.creditor), remainder);
+        acc.insert((o.debtor(), o.creditor()), remainder);
         acc
     });
     assert!(remainders.into_iter().all(|(_, remainder)| remainder == 0));
 
     // Assign cleared amounts to individual obligations
-    on.rows
-        .into_iter()
+    on_iter
+        .clone()
         .flat_map(
-            |o| match liabilities.get_mut(&(o.debtor, o.creditor)).unwrap() {
+            |o| match liabilities.get_mut(&(o.debtor(), o.creditor())).unwrap() {
                 0 => None,
-                x if *x < o.amount => {
+                x if *x < o.amount() => {
                     let oldx = *x;
                     *x = 0;
                     Some(SetoffNotice {
-                        id: o.id,
-                        debtor: o.debtor,
-                        creditor: o.creditor,
-                        amount: o.amount,
+                        id: o.id(),
+                        debtor: o.debtor(),
+                        creditor: o.creditor(),
+                        amount: o.amount(),
                         setoff: oldx,
-                        remainder: o.amount - oldx,
+                        remainder: o.amount() - oldx,
                     })
                 }
                 x => {
-                    *x -= o.amount;
+                    *x -= o.amount();
                     Some(SetoffNotice {
-                        id: o.id,
-                        debtor: o.debtor,
-                        creditor: o.creditor,
+                        id: o.id(),
+                        debtor: o.debtor(),
+                        creditor: o.creditor(),
                         amount: 0,
-                        setoff: o.amount,
+                        setoff: o.amount(),
                         remainder: 0,
                     })
                 }
