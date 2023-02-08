@@ -126,6 +126,26 @@ where
     }
 }
 
+pub trait SetOffNoticeTrait {
+    type AccountId;
+    type Amount;
+
+    fn new(
+        id: Option<usize>,
+        debtor: Self::AccountId,
+        creditor: Self::AccountId,
+        amount: Self::Amount,
+        setoff: Self::Amount,
+        remainder: Self::Amount,
+    ) -> Self;
+    fn id(&self) -> Option<usize>;
+    fn debtor(&self) -> Self::AccountId;
+    fn creditor(&self) -> Self::AccountId;
+    fn amount(&self) -> Self::Amount;
+    fn setoff(&self) -> Self::Amount;
+    fn remainder(&self) -> Self::Amount;
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct SetoffNotice<AccountId, Amount> {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -137,11 +157,63 @@ pub struct SetoffNotice<AccountId, Amount> {
     remainder: Amount,
 }
 
-pub fn run<'a, O, ON>(on: ON) -> Vec<SetoffNotice<i32, i32>>
+impl<AccountId, Amount> SetOffNoticeTrait for SetoffNotice<AccountId, Amount>
+where
+    AccountId: Copy,
+    Amount: Copy,
+{
+    type AccountId = AccountId;
+    type Amount = Amount;
+
+    fn new(
+        id: Option<usize>,
+        debtor: Self::AccountId,
+        creditor: Self::AccountId,
+        amount: Self::Amount,
+        setoff: Self::Amount,
+        remainder: Self::Amount,
+    ) -> Self {
+        Self {
+            id,
+            debtor,
+            creditor,
+            amount,
+            setoff,
+            remainder,
+        }
+    }
+
+    fn id(&self) -> Option<usize> {
+        self.id
+    }
+
+    fn debtor(&self) -> Self::AccountId {
+        self.debtor
+    }
+
+    fn creditor(&self) -> Self::AccountId {
+        self.creditor
+    }
+
+    fn amount(&self) -> Self::Amount {
+        self.amount
+    }
+
+    fn setoff(&self) -> Self::Amount {
+        self.setoff
+    }
+
+    fn remainder(&self) -> Self::Amount {
+        self.remainder
+    }
+}
+
+pub fn run<'a, O, ON, SO>(on: ON) -> Vec<SO>
 where
     O: 'a + ObligationTrait<Amount = i32, AccountId = i32>,
     ON: IntoIterator<Item = &'a O>,
     <ON as IntoIterator>::IntoIter: Clone,
+    SO: SetOffNoticeTrait<Amount = i32, AccountId = i32>,
 {
     let on_iter = on.into_iter();
 
@@ -246,90 +318,65 @@ where
                 x if *x < o.amount() => {
                     let oldx = *x;
                     *x = 0;
-                    Some(SetoffNotice {
-                        id: o.id(),
-                        debtor: o.debtor(),
-                        creditor: o.creditor(),
-                        amount: o.amount(),
-                        setoff: oldx,
-                        remainder: o.amount() - oldx,
-                    })
+                    Some(SO::new(
+                        o.id(),
+                        o.debtor(),
+                        o.creditor(),
+                        o.amount(),
+                        oldx,
+                        o.amount() - oldx,
+                    ))
                 }
                 x => {
                     *x -= o.amount();
-                    Some(SetoffNotice {
-                        id: o.id(),
-                        debtor: o.debtor(),
-                        creditor: o.creditor(),
-                        amount: 0,
-                        setoff: o.amount(),
-                        remainder: 0,
-                    })
+                    Some(SO::new(o.id(), o.debtor(), o.creditor(), 0, o.amount(), 0))
                 }
             },
         )
         .collect()
 }
 
-pub fn check(setoffs: &[SetoffNotice<i32, i32>]) {
+pub fn check<SO>(setoffs: &[SO])
+where
+    SO: SetOffNoticeTrait<AccountId = i32, Amount = i32>,
+{
     // ba - net balance positions of the obligation network
-    let ba = setoffs.iter().fold(
-        BTreeMap::<i32, i32>::new(),
-        |mut acc,
-         SetoffNotice {
-             debtor,
-             creditor,
-             amount,
-             ..
-         }| {
-            *acc.entry(*creditor).or_default() += *amount;
-            *acc.entry(*debtor).or_default() -= *amount;
+    let ba = setoffs
+        .iter()
+        .fold(BTreeMap::<i32, i32>::new(), |mut acc, so| {
+            *acc.entry(so.creditor()).or_default() += so.amount();
+            *acc.entry(so.debtor()).or_default() -= so.amount();
             acc
-        },
-    );
+        });
 
     // bl - net balance positions of the remaining acyclic network
-    let bl = setoffs.iter().fold(
-        BTreeMap::<i32, i32>::new(),
-        |mut acc,
-         SetoffNotice {
-             debtor,
-             creditor,
-             remainder,
-             ..
-         }| {
-            *acc.entry(*creditor).or_default() += *remainder;
-            *acc.entry(*debtor).or_default() -= *remainder;
+    let bl = setoffs
+        .iter()
+        .fold(BTreeMap::<i32, i32>::new(), |mut acc, so| {
+            *acc.entry(so.creditor()).or_default() += so.remainder();
+            *acc.entry(so.debtor()).or_default() -= so.remainder();
             acc
-        },
-    );
+        });
 
     ba.iter().all(|(firm, amount)| amount == &bl[firm]);
 
     // bc - net balance positions of the cyclic network
-    let bc = setoffs.iter().fold(
-        BTreeMap::<i32, i32>::new(),
-        |mut acc,
-         SetoffNotice {
-             debtor,
-             creditor,
-             setoff,
-             ..
-         }| {
-            *acc.entry(*creditor).or_default() += *setoff;
-            *acc.entry(*debtor).or_default() -= *setoff;
+    let bc = setoffs
+        .iter()
+        .fold(BTreeMap::<i32, i32>::new(), |mut acc, so| {
+            *acc.entry(so.creditor()).or_default() += so.setoff();
+            *acc.entry(so.debtor()).or_default() -= so.setoff();
             acc
-        },
-    );
+        });
 
     let ba_len = ba.len();
     let nid_a: i32 = ba.into_values().filter(|amount| amount > &0).sum();
     let nid_c: i32 = bc.into_values().filter(|amount| amount > &0).sum();
     let nid_l: i32 = bl.into_values().filter(|amount| amount > &0).sum();
 
-    let debt_before: i32 = setoffs.iter().map(|s| s.amount).sum();
-    let debt_after: i32 = setoffs.iter().map(|s| s.setoff).sum();
-    let compensated: i32 = setoffs.iter().map(|s| s.remainder).sum();
+    let debt_before: i32 = setoffs.iter().map(|s| s.amount()).sum();
+    let debt_after: i32 = setoffs.iter().map(|s| s.setoff()).sum();
+    let compensated: i32 = setoffs.iter().map(|s| s.remainder()).sum();
 
     log::debug!("num of companies: {ba_len}");
     log::debug!("      NID before: {nid_a}");
