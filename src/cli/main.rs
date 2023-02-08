@@ -10,7 +10,7 @@ use csv::{Reader as CsvReader, Writer as CsvWriter};
 use log::LevelFilter;
 use mtcs::{check, run, Obligation, SetoffNotice};
 use num_traits::Zero;
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use simplelog::{Config as SimpleLoggerConfig, SimpleLogger};
 
 /// Tool for running Multilateral Trade Credit Set-off (MTCS) on an obligation network
@@ -42,7 +42,14 @@ where
 }
 
 // Write the clearing results to CSV file
-fn write_csv(res: Vec<SetoffNotice>, writer: impl Write) -> Result<(), Box<dyn Error>> {
+fn write_csv<AccountId, Amount>(
+    res: Vec<SetoffNotice<AccountId, Amount>>,
+    writer: impl Write,
+) -> Result<(), Box<dyn Error>>
+where
+    AccountId: Serialize,
+    Amount: Serialize,
+{
     let mut wtr = CsvWriter::from_writer(writer);
     for setoff in res {
         wtr.serialize(setoff)?;

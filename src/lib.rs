@@ -127,17 +127,17 @@ where
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
-pub struct SetoffNotice {
+pub struct SetoffNotice<AccountId, Amount> {
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<usize>,
-    debtor: i32,
-    creditor: i32,
-    amount: i32,
-    setoff: i32,
-    remainder: i32,
+    debtor: AccountId,
+    creditor: AccountId,
+    amount: Amount,
+    setoff: Amount,
+    remainder: Amount,
 }
 
-pub fn run<'a, O, ON>(on: ON) -> Vec<SetoffNotice>
+pub fn run<'a, O, ON>(on: ON) -> Vec<SetoffNotice<i32, i32>>
 where
     O: 'a + ObligationTrait<Amount = i32, AccountId = i32>,
     ON: IntoIterator<Item = &'a O>,
@@ -271,7 +271,7 @@ where
         .collect()
 }
 
-pub fn check(setoffs: &[SetoffNotice]) {
+pub fn check(setoffs: &[SetoffNotice<i32, i32>]) {
     // ba - net balance positions of the obligation network
     let ba = setoffs.iter().fold(
         BTreeMap::<i32, i32>::new(),
