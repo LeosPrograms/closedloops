@@ -8,7 +8,9 @@ use std::path::PathBuf;
 use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
 use log::LevelFilter;
-use mtcs::{check, run, ObligationNetwork, SetoffNotice};
+use mtcs::{check, run, Obligation, SetoffNotice};
+use num_traits::Zero;
+use serde::de::DeserializeOwned;
 use simplelog::{Config as SimpleLoggerConfig, SimpleLogger};
 
 /// Tool for running Multilateral Trade Credit Set-off (MTCS) on an obligation network
@@ -29,11 +31,14 @@ struct Args {
 }
 
 // Read the obligations from CSV file
-fn read_obligations_csv(reader: impl Read, _has_headers: bool) -> ObligationNetwork {
+fn read_obligations_csv<AccountId, Amount>(reader: impl Read) -> Vec<Obligation<AccountId, Amount>>
+where
+    AccountId: PartialEq + DeserializeOwned,
+    Amount: PartialOrd + Zero + DeserializeOwned,
+{
     let mut rdr = CsvReader::from_reader(reader);
     let rows: Result<Vec<_>, _> = rdr.deserialize().collect();
-    let rows = rows.unwrap();
-    ObligationNetwork { rows }
+    rows.unwrap()
 }
 
 // Write the clearing results to CSV file
@@ -65,7 +70,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Read the obligations from the input CSV file
     let input_file = File::open(args.input_file)?;
-    let on = read_obligations_csv(&input_file, true);
+    let on: Vec<Obligation<i32, i32>> = read_obligations_csv(&input_file);
 
     // Run the MTCS algorithm
     let res = run(on);

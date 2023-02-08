@@ -126,11 +126,6 @@ where
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ObligationNetwork {
-    pub rows: Vec<Obligation<i32, i32>>,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct SetoffNotice {
     #[serde(skip_serializing_if = "Option::is_none")]
