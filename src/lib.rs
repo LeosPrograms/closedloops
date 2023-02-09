@@ -155,34 +155,41 @@ where
     // Assign cleared amounts to individual obligations
     on_iter
         .clone()
-        .flat_map(|o| {
+        .map(|o| {
             match liabilities
                 .get_mut(&(o.debtor().into(), o.creditor().into()))
                 .unwrap()
             {
-                x if x.is_zero() => None,
+                x if x.is_zero() => SO::new(
+                    o.id(),
+                    o.debtor(),
+                    o.creditor(),
+                    o.amount(),
+                    Amt::zero(),
+                    o.amount(),
+                ),
                 x if *x < o.amount() => {
                     let oldx = *x;
                     *x = Amt::default();
-                    Some(SO::new(
+                    SO::new(
                         o.id(),
                         o.debtor(),
                         o.creditor(),
                         o.amount(),
                         oldx,
                         o.amount() - oldx,
-                    ))
+                    )
                 }
                 x => {
                     *x -= o.amount();
-                    Some(SO::new(
+                    SO::new(
                         o.id(),
                         o.debtor(),
                         o.creditor(),
-                        Amt::zero(),
+                        o.amount(),
                         o.amount(),
                         Amt::zero(),
-                    ))
+                    )
                 }
             }
         })
@@ -233,8 +240,8 @@ where
         .sum();
 
     let debt_before: Amt = setoffs.iter().map(|s| s.amount()).sum();
-    let debt_after: Amt = setoffs.iter().map(|s| s.setoff()).sum();
-    let compensated: Amt = setoffs.iter().map(|s| s.remainder()).sum();
+    let debt_after: Amt = setoffs.iter().map(|s| s.remainder()).sum();
+    let compensated: Amt = setoffs.iter().map(|s| s.setoff()).sum();
 
     log::debug!("num of companies: {ba_len}");
     log::debug!("      NID before: {nid_a}");
