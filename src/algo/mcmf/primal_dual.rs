@@ -1,6 +1,7 @@
 use alloc::collections::BTreeMap;
 use core::fmt::Debug;
 use core::hash::Hash;
+use core::marker::PhantomData;
 
 use num_traits::CheckedAdd;
 use petgraph::algo::dijkstra;
@@ -11,7 +12,7 @@ use petgraph::Direction;
 use crate::account_id::AccountId;
 use crate::algo::max_flow::push_relabel_max_flow;
 use crate::amount::Amount;
-use crate::Node;
+use crate::{MinCostFlow, Node};
 
 #[derive(Debug, Clone, Default)]
 pub struct EdgeWeight<Cost, Capacity> {
@@ -19,24 +20,46 @@ pub struct EdgeWeight<Cost, Capacity> {
     pub capacity: Capacity, // µ
 }
 
+#[derive(Default)]
+pub struct PrimalDual<Addr, Uint>(PhantomData<(Addr, Uint)>);
+
+impl<Addr, Uint> MinCostFlow for PrimalDual<Addr, Uint>
+where
+    Addr: AccountId + Copy + Hash,
+    Uint: Amount + CheckedAdd,
+{
+    type NodeWeight = Addr;
+    type EdgeCapacity = Uint;
+    type EdgeCost = Uint;
+    type GraphIter = BTreeMap<(Node<Addr>, Node<Addr>), Uint>;
+    type Error = ();
+    type Paths = BTreeMap<(Addr, Addr), Uint>;
+
+    fn min_cost_flow(
+        &mut self,
+        graph_iter: &Self::GraphIter,
+    ) -> Result<(Self::EdgeCapacity, Self::Paths), Self::Error> {
+        Ok(mtcs_primal_dual::<Addr, Uint>(graph_iter))
+    }
+}
+
 pub fn mtcs_primal_dual<Addr, Uint>(
-    obligation_list: BTreeMap<(Node<Addr>, Node<Addr>), Uint>,
+    obligation_list: &BTreeMap<(Node<Addr>, Node<Addr>), Uint>,
 ) -> (Uint, BTreeMap<(Addr, Addr), Uint>)
 where
     Addr: AccountId + Copy + Hash,
     Uint: Amount + CheckedAdd,
 {
-    let mut graph =
-        DiGraphMap::from_edges(obligation_list.into_iter().map(|((d, c), capacity)| {
-            (
-                d,
-                c,
-                EdgeWeight {
-                    capacity,
-                    cost: Uint::zero(),
-                },
-            )
-        }));
+    let mut graph = DiGraphMap::from_edges(obligation_list.iter().map(|((d, c), capacity)| {
+        (
+            *d,
+            *c,
+            EdgeWeight {
+                capacity: *capacity,
+                cost: Uint::zero(),
+            },
+        )
+    }));
 
     let mut max_flow = Uint::zero();
     let mut paths = BTreeMap::new();

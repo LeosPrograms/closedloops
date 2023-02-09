@@ -9,7 +9,7 @@ use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
 use log::LevelFilter;
 use mtcs::{
-    algo::mcmf::network_simplex::NetworkSimplex, check, obligation::SimpleObligation, run,
+    algo::mcmf::primal_dual::PrimalDual, check, obligation::SimpleObligation, run,
     setoff::SimpleSetoff,
 };
 use num_traits::Zero;
@@ -86,7 +86,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Run the MTCS algorithm
     let now = std::time::Instant::now();
-    let res = run(on, NetworkSimplex).expect("MTCS run failed");
+    let res = run(on, PrimalDual::default()).expect("MTCS run failed");
     let elapsed = now.elapsed();
     log::info!("Run time: {elapsed:?}");
 
