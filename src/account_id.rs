@@ -1,6 +1,6 @@
-use core::fmt::Display;
+use core::fmt::Debug;
 
-pub trait AccountIdTrait: Clone + Ord + Display {
+pub trait AccountIdTrait: Clone + Ord + Debug {
     fn source() -> Self;
     fn sink() -> Self;
 }

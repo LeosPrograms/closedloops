@@ -9,7 +9,7 @@
 )]
 #![forbid(unsafe_code)]
 
-mod account_id;
+pub mod account_id;
 pub mod algo;
 pub mod amount;
 pub mod error;
@@ -107,7 +107,7 @@ where
             .into_iter()
             .tuple_windows()
             .for_each(|(w1, w2)| {
-                log::trace!("{} --> {}", w1, w2);
+                log::trace!("{:?} --> {:?}", w1, w2);
 
                 tc -= path.flow();
                 liabilities
