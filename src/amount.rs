@@ -4,7 +4,7 @@ use core::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 
 use num_traits::{One, Zero};
 
-pub trait AmountTrait:
+pub trait Amount:
     Copy
     + Sum<Self>
     + Add<Output = Self>
@@ -21,4 +21,4 @@ pub trait AmountTrait:
 {
 }
 
-impl AmountTrait for i32 {}
+impl Amount for i32 {}

@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-pub trait SetOffNoticeTrait {
+pub trait SetOff {
     type AccountId;
     type Amount;
 
@@ -21,7 +21,7 @@ pub trait SetOffNoticeTrait {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
-pub struct SetoffNotice<AccountId, Amount> {
+pub struct SimpleSetoff<AccountId, Amount> {
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<usize>,
     debtor: AccountId,
@@ -31,7 +31,7 @@ pub struct SetoffNotice<AccountId, Amount> {
     remainder: Amount,
 }
 
-impl<AccountId, Amount> SetOffNoticeTrait for SetoffNotice<AccountId, Amount>
+impl<AccountId, Amount> SetOff for SimpleSetoff<AccountId, Amount>
 where
     AccountId: Copy,
     Amount: Copy,

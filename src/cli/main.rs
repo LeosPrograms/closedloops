@@ -8,7 +8,9 @@ use std::path::PathBuf;
 use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
 use log::LevelFilter;
-use mtcs::{algo::mcmf::NetworkSimplex, check, obligation::Obligation, run, setoff::SetoffNotice};
+use mtcs::{
+    algo::mcmf::NetworkSimplex, check, obligation::SimpleObligation, run, setoff::SimpleSetoff,
+};
 use num_traits::Zero;
 use serde::{de::DeserializeOwned, Serialize};
 use simplelog::{Config as SimpleLoggerConfig, SimpleLogger};
@@ -31,7 +33,9 @@ struct Args {
 }
 
 // Read the obligations from CSV file
-fn read_obligations_csv<AccountId, Amount>(reader: impl Read) -> Vec<Obligation<AccountId, Amount>>
+fn read_obligations_csv<AccountId, Amount>(
+    reader: impl Read,
+) -> Vec<SimpleObligation<AccountId, Amount>>
 where
     AccountId: PartialEq + DeserializeOwned,
     Amount: PartialOrd + Zero + DeserializeOwned,
@@ -43,7 +47,7 @@ where
 
 // Write the clearing results to CSV file
 fn write_csv<AccountId, Amount>(
-    res: Vec<SetoffNotice<AccountId, Amount>>,
+    res: Vec<SimpleSetoff<AccountId, Amount>>,
     writer: impl Write,
 ) -> Result<(), Box<dyn Error>>
 where
@@ -77,7 +81,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Read the obligations from the input CSV file
     let input_file = File::open(args.input_file)?;
-    let on: Vec<Obligation<i32, i32>> = read_obligations_csv(&input_file);
+    let on: Vec<SimpleObligation<i32, i32>> = read_obligations_csv(&input_file);
 
     // Run the MTCS algorithm
     let now = std::time::Instant::now();

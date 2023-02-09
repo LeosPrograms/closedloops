@@ -1,11 +1,11 @@
 use core::fmt::Debug;
 
-pub trait AccountIdTrait: Clone + Ord + Debug {}
+pub trait AccountId: Clone + Ord + Debug {}
 
-impl AccountIdTrait for i32 {}
+impl AccountId for i32 {}
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
-pub enum Node<Id: AccountIdTrait> {
+pub enum Node<Id: AccountId> {
     Source,
     Sink,
     WithId(Id),
@@ -13,7 +13,7 @@ pub enum Node<Id: AccountIdTrait> {
 
 impl<Id> From<Id> for Node<Id>
 where
-    Id: AccountIdTrait,
+    Id: AccountId,
 {
     fn from(id: Id) -> Self {
         Self::WithId(id)

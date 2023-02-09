@@ -24,29 +24,29 @@ use core::cmp::Ordering;
 
 use itertools::Itertools;
 
-use crate::account_id::{AccountIdTrait, Node};
+use crate::account_id::{AccountId, Node};
 use crate::algo::{FlowPath, Mcmf};
-use crate::amount::AmountTrait;
-use crate::obligation::ObligationTrait;
-use crate::setoff::SetOffNoticeTrait;
+use crate::amount::Amount;
+use crate::obligation::Obligation;
+use crate::setoff::SetOff;
 
-pub fn run<'a, O, ON, SO, Algo, AccountId, Amount>(on: ON, mut algo: Algo) -> Vec<SO>
+pub fn run<'a, O, ON, SO, Algo, AccId, Amt>(on: ON, mut algo: Algo) -> Vec<SO>
 where
-    O: 'a + ObligationTrait<Amount = Amount, AccountId = AccountId>,
+    O: 'a + Obligation<Amount = Amt, AccountId = AccId>,
     ON: IntoIterator<Item = &'a O>,
     <ON as IntoIterator>::IntoIter: Clone,
-    SO: SetOffNoticeTrait<Amount = Amount, AccountId = AccountId>,
-    Algo: Mcmf<Liabilities = BTreeMap<(Node<AccountId>, Node<AccountId>), Amount>, Amount = Amount>,
-    <Algo as Mcmf>::Path: FlowPath<Node = AccountId>,
-    AccountId: AccountIdTrait,
-    Amount: AmountTrait,
+    SO: SetOff<Amount = Amt, AccountId = AccId>,
+    Algo: Mcmf<Liabilities = BTreeMap<(Node<AccId>, Node<AccId>), Amt>, Amount = Amt>,
+    <Algo as Mcmf>::Path: FlowPath<Node = AccId>,
+    AccId: AccountId,
+    Amt: Amount,
 {
     let on_iter = on.into_iter();
 
     // calculate the b vector
     let net_position = on_iter
         .clone()
-        .fold(BTreeMap::<_, Amount>::new(), |mut acc, o| {
+        .fold(BTreeMap::<_, Amt>::new(), |mut acc, o| {
             *acc.entry(o.creditor()).or_default() += o.amount(); // credit increases the net balance
             *acc.entry(o.debtor()).or_default() -= o.amount(); // debit decreases the net balance
             acc
@@ -79,7 +79,7 @@ where
     // Add source and sink flows based on values of "b" vector
     net_position
         .iter()
-        .for_each(|(firm, balance)| match balance.cmp(&Amount::zero()) {
+        .for_each(|(firm, balance)| match balance.cmp(&Amt::zero()) {
             Ordering::Less => {
                 liabilities.insert((Node::Source, firm.clone().into()), -*balance);
             }
@@ -90,15 +90,15 @@ where
         });
 
     // calculate total debt
-    let td: Amount = on_iter.clone().map(|o| o.amount()).sum();
+    let td: Amt = on_iter.clone().map(|o| o.amount()).sum();
 
     // run the (min-cost) max-flow algo
     let (remained, paths) = algo.mcmf(&liabilities).unwrap();
 
     // calculate Net Internal Debt (NID) from the b vector
-    let nid: Amount = net_position
+    let nid: Amt = net_position
         .into_values()
-        .filter(|balance| balance > &Amount::default())
+        .filter(|balance| balance > &Amt::default())
         .sum();
 
     // substract minimum cost maximum flow from the liabilities to get the clearing solution
@@ -140,7 +140,7 @@ where
         let remainder = if *flow > o.amount() {
             *flow - o.amount()
         } else {
-            Amount::default()
+            Amt::default()
         };
         if acc.contains_key(&(o.debtor(), o.creditor())) {
             acc.remove(&(o.debtor(), o.creditor()));
@@ -150,7 +150,7 @@ where
     });
     assert!(remainders
         .into_iter()
-        .all(|(_, remainder)| remainder == Amount::default()));
+        .all(|(_, remainder)| remainder == Amt::default()));
 
     // Assign cleared amounts to individual obligations
     on_iter
@@ -163,7 +163,7 @@ where
                 x if x.is_zero() => None,
                 x if *x < o.amount() => {
                     let oldx = *x;
-                    *x = Amount::default();
+                    *x = Amt::default();
                     Some(SO::new(
                         o.id(),
                         o.debtor(),
@@ -179,9 +179,9 @@ where
                         o.id(),
                         o.debtor(),
                         o.creditor(),
-                        Amount::zero(),
+                        Amt::zero(),
                         o.amount(),
-                        Amount::zero(),
+                        Amt::zero(),
                     ))
                 }
             }
@@ -189,11 +189,11 @@ where
         .collect()
 }
 
-pub fn check<SO, AccountId, Amount>(setoffs: &[SO])
+pub fn check<SO, AccId, Amt>(setoffs: &[SO])
 where
-    SO: SetOffNoticeTrait<AccountId = AccountId, Amount = Amount>,
-    AccountId: AccountIdTrait,
-    Amount: AmountTrait,
+    SO: SetOff<AccountId = AccId, Amount = Amt>,
+    AccId: AccountId,
+    Amt: Amount,
 {
     // ba - net balance positions of the obligation network
     let ba = setoffs.iter().fold(BTreeMap::<_, _>::new(), |mut acc, so| {
@@ -219,22 +219,22 @@ where
     });
 
     let ba_len = ba.len();
-    let nid_a: Amount = ba
+    let nid_a: Amt = ba
         .into_values()
-        .filter(|amount| amount > &Amount::zero())
+        .filter(|amount| amount > &Amt::zero())
         .sum();
-    let nid_c: Amount = bc
+    let nid_c: Amt = bc
         .into_values()
-        .filter(|amount| amount > &Amount::zero())
+        .filter(|amount| amount > &Amt::zero())
         .sum();
-    let nid_l: Amount = bl
+    let nid_l: Amt = bl
         .into_values()
-        .filter(|amount| amount > &Amount::zero())
+        .filter(|amount| amount > &Amt::zero())
         .sum();
 
-    let debt_before: Amount = setoffs.iter().map(|s| s.amount()).sum();
-    let debt_after: Amount = setoffs.iter().map(|s| s.setoff()).sum();
-    let compensated: Amount = setoffs.iter().map(|s| s.remainder()).sum();
+    let debt_before: Amt = setoffs.iter().map(|s| s.amount()).sum();
+    let debt_after: Amt = setoffs.iter().map(|s| s.setoff()).sum();
+    let compensated: Amt = setoffs.iter().map(|s| s.remainder()).sum();
 
     log::debug!("num of companies: {ba_len}");
     log::debug!("      NID before: {nid_a}");

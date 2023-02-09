@@ -3,7 +3,7 @@ use serde::Deserialize;
 
 use crate::error::Error;
 
-pub trait ObligationTrait {
+pub trait Obligation {
     type AccountId;
     type Amount;
 
@@ -19,14 +19,14 @@ pub trait ObligationTrait {
     bound(deserialize = "AccountId: PartialEq + Deserialize<'de>, \
                     Amount: Zero + PartialOrd + Deserialize<'de>")
 )]
-pub struct Obligation<AccountId, Amount> {
+pub struct SimpleObligation<AccountId, Amount> {
     id: Option<usize>,
     debtor: AccountId,
     creditor: AccountId,
     amount: Amount,
 }
 
-impl<AccountId, Amount> Obligation<AccountId, Amount>
+impl<AccountId, Amount> SimpleObligation<AccountId, Amount>
 where
     AccountId: PartialEq,
     Amount: Zero + PartialOrd,
@@ -52,7 +52,7 @@ where
     }
 }
 
-impl<AccountId, Amount> ObligationTrait for Obligation<AccountId, Amount>
+impl<AccountId, Amount> Obligation for SimpleObligation<AccountId, Amount>
 where
     AccountId: Copy,
     Amount: Copy,
@@ -85,7 +85,8 @@ pub struct RawObligation<AccountId, Amount> {
     pub amount: Amount,
 }
 
-impl<AccountId, Amount> TryFrom<RawObligation<AccountId, Amount>> for Obligation<AccountId, Amount>
+impl<AccountId, Amount> TryFrom<RawObligation<AccountId, Amount>>
+    for SimpleObligation<AccountId, Amount>
 where
     AccountId: PartialEq,
     Amount: Zero + PartialOrd,
