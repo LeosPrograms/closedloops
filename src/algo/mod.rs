@@ -16,13 +16,11 @@ pub trait Mcmf {
     type AccountId;
     type Amount;
     type Liabilities;
-    type NetPositions;
     type Error: Debug;
     type Path: FlowPath<Flow = Self::Amount>;
 
     fn mcmf(
         &mut self,
         liabilities: &Self::Liabilities,
-        net_positions: &Self::NetPositions,
     ) -> Result<(Self::Amount, Vec<Self::Path>), Self::Error>;
 }

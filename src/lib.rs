@@ -20,6 +20,7 @@ extern crate alloc;
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
+use core::cmp::Ordering;
 
 use itertools::Itertools;
 
@@ -35,11 +36,7 @@ where
     ON: IntoIterator<Item = &'a O>,
     <ON as IntoIterator>::IntoIter: Clone,
     SO: SetOffNoticeTrait<Amount = Amount, AccountId = AccountId>,
-    Algo: Mcmf<
-        Liabilities = BTreeMap<(AccountId, AccountId), Amount>,
-        NetPositions = BTreeMap<AccountId, Amount>,
-        Amount = Amount,
-    >,
+    Algo: Mcmf<Liabilities = BTreeMap<(AccountId, AccountId), Amount>, Amount = Amount>,
     <Algo as Mcmf>::Path: FlowPath<Node = AccountId>,
     AccountId: AccountIdTrait,
     Amount: AmountTrait,
@@ -47,11 +44,13 @@ where
     let on_iter = on.into_iter();
 
     // calculate the b vector
-    let net_position = on_iter.clone().fold(BTreeMap::new(), |mut acc, o| {
-        *acc.entry(o.creditor()).or_default() += o.amount(); // credit increases the net balance
-        *acc.entry(o.debtor()).or_default() -= o.amount(); // debit decreases the net balance
-        acc
-    });
+    let net_position = on_iter
+        .clone()
+        .fold(BTreeMap::<_, Amount>::new(), |mut acc, o| {
+            *acc.entry(o.creditor()).or_default() += o.amount(); // credit increases the net balance
+            *acc.entry(o.debtor()).or_default() -= o.amount(); // debit decreases the net balance
+            acc
+        });
 
     // create a list of peripheral 'head/tail' nodes (i.e. nodes which are only either creditors or
     // debtors and therefore cannot be part of a cycle.
@@ -76,11 +75,24 @@ where
         acc
     });
 
+    // Add source and sink flows based on values of "b" vector
+    net_position
+        .iter()
+        .for_each(|(firm, balance)| match balance.cmp(&Amount::zero()) {
+            Ordering::Less => {
+                liabilities.insert((AccountId::source(), firm.clone()), -*balance);
+            }
+            Ordering::Greater => {
+                liabilities.insert((firm.clone(), AccountId::sink()), *balance);
+            }
+            Ordering::Equal => {}
+        });
+
     // calculate total debt
     let td: Amount = on_iter.clone().map(|o| o.amount()).sum();
 
     // run the (min-cost) max-flow algo
-    let (remained, paths) = algo.mcmf(&liabilities, &net_position).unwrap();
+    let (remained, paths) = algo.mcmf(&liabilities).unwrap();
 
     // calculate Net Internal Debt (NID) from the b vector
     let nid: Amount = net_position
