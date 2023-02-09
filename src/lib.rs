@@ -9,6 +9,7 @@
 )]
 #![forbid(unsafe_code)]
 
+mod account_id;
 pub mod algo;
 pub mod amount;
 pub mod error;
@@ -19,12 +20,11 @@ extern crate alloc;
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
-use core::fmt::Display;
 
 use itertools::Itertools;
 
-use crate::algo::FlowPath;
-use crate::algo::Mcmf;
+use crate::account_id::AccountIdTrait;
+use crate::algo::{FlowPath, Mcmf};
 use crate::amount::AmountTrait;
 use crate::obligation::ObligationTrait;
 use crate::setoff::SetOffNoticeTrait;
@@ -41,7 +41,7 @@ where
         Amount = Amount,
     >,
     <Algo as Mcmf>::Path: FlowPath<Node = AccountId>,
-    AccountId: Ord + Default + Clone + Display,
+    AccountId: AccountIdTrait,
     Amount: AmountTrait,
 {
     let on_iter = on.into_iter();
@@ -173,7 +173,7 @@ where
 pub fn check<SO, AccountId, Amount>(setoffs: &[SO])
 where
     SO: SetOffNoticeTrait<AccountId = AccountId, Amount = Amount>,
-    AccountId: Ord + Default + Clone + Display,
+    AccountId: AccountIdTrait,
     Amount: AmountTrait,
 {
     // ba - net balance positions of the obligation network
