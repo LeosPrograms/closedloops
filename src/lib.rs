@@ -18,26 +18,33 @@ extern crate alloc;
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
+use core::fmt::{Debug, Display};
+use core::iter::Sum;
+use core::ops::{AddAssign, Sub, SubAssign};
 
 use itertools::Itertools;
+use num_traits::Zero;
 
 use crate::algo::FlowPath;
 use crate::algo::Mcmf;
 use crate::obligation::ObligationTrait;
 use crate::setoff::SetOffNoticeTrait;
 
-pub fn run<'a, O, ON, SO, Algo>(on: ON, mut algo: Algo) -> Vec<SO>
+pub fn run<'a, O, ON, SO, Algo, AccountId, Amount>(on: ON, mut algo: Algo) -> Vec<SO>
 where
-    O: 'a + ObligationTrait<Amount = i32, AccountId = i32>,
+    O: 'a + ObligationTrait<Amount = Amount, AccountId = AccountId>,
     ON: IntoIterator<Item = &'a O>,
     <ON as IntoIterator>::IntoIter: Clone,
-    SO: SetOffNoticeTrait<Amount = i32, AccountId = i32>,
+    SO: SetOffNoticeTrait<Amount = Amount, AccountId = AccountId>,
     Algo: Mcmf<
-        Liabilities = BTreeMap<(i32, i32), i32>,
-        NetPositions = BTreeMap<i32, i32>,
-        Amount = i32,
+        Liabilities = BTreeMap<(AccountId, AccountId), Amount>,
+        NetPositions = BTreeMap<AccountId, Amount>,
+        Amount = Amount,
     >,
-    <Algo as Mcmf>::Path: FlowPath<Node = i32>,
+    <Algo as Mcmf>::Path: FlowPath<Node = AccountId>,
+    AccountId: Ord + Default + Clone + Display,
+    Amount:
+        Ord + Sub<Output = Amount> + Default + Zero + AddAssign + SubAssign + Sum + Copy + Debug,
 {
     let on_iter = on.into_iter();
 
@@ -72,19 +79,19 @@ where
     });
 
     // calculate total debt
-    let td = on_iter.clone().map(|o| o.amount() as i64).sum();
+    let td: Amount = on_iter.clone().map(|o| o.amount()).sum();
 
     // run the (min-cost) max-flow algo
     let (remained, paths) = algo.mcmf(&liabilities, &net_position).unwrap();
 
     // calculate Net Internal Debt (NID) from the b vector
-    let nid: i32 = net_position
+    let nid: Amount = net_position
         .into_values()
-        .filter(|balance| balance > &0)
+        .filter(|balance| balance > &Amount::default())
         .sum();
 
     // substract minimum cost maximum flow from the liabilities to get the clearing solution
-    let mut tc: i64 = td;
+    let mut tc = td;
     paths.into_iter().for_each(|path| {
         path.nodes()
             .into_iter()
@@ -92,10 +99,10 @@ where
             .for_each(|(w1, w2)| {
                 log::trace!("{} --> {}", w1, w2);
 
-                tc -= i64::from(path.flow());
+                tc -= path.flow();
                 liabilities
                     .entry((w1, w2))
-                    .and_modify(|e| *e -= i32::try_from(path.flow()).unwrap());
+                    .and_modify(|e| *e -= path.flow());
             })
     });
 
@@ -119,7 +126,7 @@ where
         let remainder = if *flow > o.amount() {
             *flow - o.amount()
         } else {
-            0
+            Amount::default()
         };
         if acc.contains_key(&(o.debtor(), o.creditor())) {
             acc.remove(&(o.debtor(), o.creditor()));
@@ -127,17 +134,19 @@ where
         acc.insert((o.debtor(), o.creditor()), remainder);
         acc
     });
-    assert!(remainders.into_iter().all(|(_, remainder)| remainder == 0));
+    assert!(remainders
+        .into_iter()
+        .all(|(_, remainder)| remainder == Amount::default()));
 
     // Assign cleared amounts to individual obligations
     on_iter
         .clone()
         .flat_map(
             |o| match liabilities.get_mut(&(o.debtor(), o.creditor())).unwrap() {
-                0 => None,
+                x if x.is_zero() => None,
                 x if *x < o.amount() => {
                     let oldx = *x;
-                    *x = 0;
+                    *x = Amount::default();
                     Some(SO::new(
                         o.id(),
                         o.debtor(),
@@ -149,7 +158,14 @@ where
                 }
                 x => {
                     *x -= o.amount();
-                    Some(SO::new(o.id(), o.debtor(), o.creditor(), 0, o.amount(), 0))
+                    Some(SO::new(
+                        o.id(),
+                        o.debtor(),
+                        o.creditor(),
+                        Amount::zero(),
+                        o.amount(),
+                        Amount::zero(),
+                    ))
                 }
             },
         )
