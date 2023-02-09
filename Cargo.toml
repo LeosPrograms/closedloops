@@ -25,3 +25,4 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 simplelog = "^0.12.0"
 displaydoc = { version = "0.2.3", default-features = false }
 num-traits = "0.2.15"
+itertools = "0.10.5"
