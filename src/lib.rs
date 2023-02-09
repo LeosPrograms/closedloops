@@ -13,17 +13,18 @@ extern crate alloc;
 
 pub mod algo;
 pub mod obligation;
+pub mod setoff;
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
 
 use displaydoc::Display;
 use itertools::Itertools;
-use obligation::ObligationTrait;
-use serde::Serialize;
 
 use crate::algo::FlowPath;
 use crate::algo::Mcmf;
+use crate::obligation::ObligationTrait;
+use crate::setoff::SetOffNoticeTrait;
 
 #[derive(Clone, Display)]
 pub enum Error {
@@ -31,88 +32,6 @@ pub enum Error {
     ObligationToSelf,
     /// Invalid obligation amount, expected positive value
     NonPositiveAmount,
-}
-
-pub trait SetOffNoticeTrait {
-    type AccountId;
-    type Amount;
-
-    fn new(
-        id: Option<usize>,
-        debtor: Self::AccountId,
-        creditor: Self::AccountId,
-        amount: Self::Amount,
-        setoff: Self::Amount,
-        remainder: Self::Amount,
-    ) -> Self;
-    fn id(&self) -> Option<usize>;
-    fn debtor(&self) -> Self::AccountId;
-    fn creditor(&self) -> Self::AccountId;
-    fn amount(&self) -> Self::Amount;
-    fn setoff(&self) -> Self::Amount;
-    fn remainder(&self) -> Self::Amount;
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
-pub struct SetoffNotice<AccountId, Amount> {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<usize>,
-    debtor: AccountId,
-    creditor: AccountId,
-    amount: Amount,
-    setoff: Amount,
-    remainder: Amount,
-}
-
-impl<AccountId, Amount> SetOffNoticeTrait for SetoffNotice<AccountId, Amount>
-where
-    AccountId: Copy,
-    Amount: Copy,
-{
-    type AccountId = AccountId;
-    type Amount = Amount;
-
-    fn new(
-        id: Option<usize>,
-        debtor: Self::AccountId,
-        creditor: Self::AccountId,
-        amount: Self::Amount,
-        setoff: Self::Amount,
-        remainder: Self::Amount,
-    ) -> Self {
-        Self {
-            id,
-            debtor,
-            creditor,
-            amount,
-            setoff,
-            remainder,
-        }
-    }
-
-    fn id(&self) -> Option<usize> {
-        self.id
-    }
-
-    fn debtor(&self) -> Self::AccountId {
-        self.debtor
-    }
-
-    fn creditor(&self) -> Self::AccountId {
-        self.creditor
-    }
-
-    fn amount(&self) -> Self::Amount {
-        self.amount
-    }
-
-    fn setoff(&self) -> Self::Amount {
-        self.setoff
-    }
-
-    fn remainder(&self) -> Self::Amount {
-        self.remainder
-    }
 }
 
 pub fn run<'a, O, ON, SO, Algo>(on: ON, mut algo: Algo) -> Vec<SO>

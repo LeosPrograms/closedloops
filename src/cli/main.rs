@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
 use log::LevelFilter;
-use mtcs::{algo::mcmf::NetworkSimplex, check, obligation::Obligation, run, SetoffNotice};
+use mtcs::{algo::mcmf::NetworkSimplex, check, obligation::Obligation, run, setoff::SetoffNotice};
 use num_traits::Zero;
 use serde::{de::DeserializeOwned, Serialize};
 use simplelog::{Config as SimpleLoggerConfig, SimpleLogger};
