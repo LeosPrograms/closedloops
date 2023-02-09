@@ -172,47 +172,61 @@ where
         .collect()
 }
 
-pub fn check<SO>(setoffs: &[SO])
+pub fn check<SO, AccountId, Amount>(setoffs: &[SO])
 where
-    SO: SetOffNoticeTrait<AccountId = i32, Amount = i32>,
+    SO: SetOffNoticeTrait<AccountId = AccountId, Amount = Amount>,
+    AccountId: Ord + Default + Clone + Display,
+    Amount: Ord
+        + Sub<Output = Amount>
+        + Default
+        + Zero
+        + AddAssign
+        + SubAssign
+        + Sum
+        + Copy
+        + Debug
+        + Display,
 {
     // ba - net balance positions of the obligation network
-    let ba = setoffs
-        .iter()
-        .fold(BTreeMap::<i32, i32>::new(), |mut acc, so| {
-            *acc.entry(so.creditor()).or_default() += so.amount();
-            *acc.entry(so.debtor()).or_default() -= so.amount();
-            acc
-        });
+    let ba = setoffs.iter().fold(BTreeMap::<_, _>::new(), |mut acc, so| {
+        *acc.entry(so.creditor()).or_default() += so.amount();
+        *acc.entry(so.debtor()).or_default() -= so.amount();
+        acc
+    });
 
     // bl - net balance positions of the remaining acyclic network
-    let bl = setoffs
-        .iter()
-        .fold(BTreeMap::<i32, i32>::new(), |mut acc, so| {
-            *acc.entry(so.creditor()).or_default() += so.remainder();
-            *acc.entry(so.debtor()).or_default() -= so.remainder();
-            acc
-        });
+    let bl = setoffs.iter().fold(BTreeMap::<_, _>::new(), |mut acc, so| {
+        *acc.entry(so.creditor()).or_default() += so.remainder();
+        *acc.entry(so.debtor()).or_default() -= so.remainder();
+        acc
+    });
 
     ba.iter().all(|(firm, amount)| amount == &bl[firm]);
 
     // bc - net balance positions of the cyclic network
-    let bc = setoffs
-        .iter()
-        .fold(BTreeMap::<i32, i32>::new(), |mut acc, so| {
-            *acc.entry(so.creditor()).or_default() += so.setoff();
-            *acc.entry(so.debtor()).or_default() -= so.setoff();
-            acc
-        });
+    let bc = setoffs.iter().fold(BTreeMap::<_, _>::new(), |mut acc, so| {
+        *acc.entry(so.creditor()).or_default() += so.setoff();
+        *acc.entry(so.debtor()).or_default() -= so.setoff();
+        acc
+    });
 
     let ba_len = ba.len();
-    let nid_a: i32 = ba.into_values().filter(|amount| amount > &0).sum();
-    let nid_c: i32 = bc.into_values().filter(|amount| amount > &0).sum();
-    let nid_l: i32 = bl.into_values().filter(|amount| amount > &0).sum();
+    let nid_a: Amount = ba
+        .into_values()
+        .filter(|amount| amount > &Amount::zero())
+        .sum();
+    let nid_c: Amount = bc
+        .into_values()
+        .filter(|amount| amount > &Amount::zero())
+        .sum();
+    let nid_l: Amount = bl
+        .into_values()
+        .filter(|amount| amount > &Amount::zero())
+        .sum();
 
-    let debt_before: i32 = setoffs.iter().map(|s| s.amount()).sum();
-    let debt_after: i32 = setoffs.iter().map(|s| s.setoff()).sum();
-    let compensated: i32 = setoffs.iter().map(|s| s.remainder()).sum();
+    let debt_before: Amount = setoffs.iter().map(|s| s.amount()).sum();
+    let debt_after: Amount = setoffs.iter().map(|s| s.setoff()).sum();
+    let compensated: Amount = setoffs.iter().map(|s| s.remainder()).sum();
 
     log::debug!("num of companies: {ba_len}");
     log::debug!("      NID before: {nid_a}");
