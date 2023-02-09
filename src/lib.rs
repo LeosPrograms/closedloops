@@ -10,6 +10,7 @@
 #![forbid(unsafe_code)]
 
 pub mod algo;
+pub mod amount;
 pub mod error;
 pub mod obligation;
 pub mod setoff;
@@ -18,15 +19,13 @@ extern crate alloc;
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
-use core::fmt::{Debug, Display};
-use core::iter::Sum;
-use core::ops::{AddAssign, Sub, SubAssign};
+use core::fmt::Display;
 
 use itertools::Itertools;
-use num_traits::Zero;
 
 use crate::algo::FlowPath;
 use crate::algo::Mcmf;
+use crate::amount::AmountTrait;
 use crate::obligation::ObligationTrait;
 use crate::setoff::SetOffNoticeTrait;
 
@@ -43,8 +42,7 @@ where
     >,
     <Algo as Mcmf>::Path: FlowPath<Node = AccountId>,
     AccountId: Ord + Default + Clone + Display,
-    Amount:
-        Ord + Sub<Output = Amount> + Default + Zero + AddAssign + SubAssign + Sum + Copy + Debug,
+    Amount: AmountTrait,
 {
     let on_iter = on.into_iter();
 
@@ -176,16 +174,7 @@ pub fn check<SO, AccountId, Amount>(setoffs: &[SO])
 where
     SO: SetOffNoticeTrait<AccountId = AccountId, Amount = Amount>,
     AccountId: Ord + Default + Clone + Display,
-    Amount: Ord
-        + Sub<Output = Amount>
-        + Default
-        + Zero
-        + AddAssign
-        + SubAssign
-        + Sum
-        + Copy
-        + Debug
-        + Display,
+    Amount: AmountTrait,
 {
     // ba - net balance positions of the obligation network
     let ba = setoffs.iter().fold(BTreeMap::<_, _>::new(), |mut acc, so| {
