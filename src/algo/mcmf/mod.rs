@@ -1,4 +1,5 @@
 pub mod network_simplex;
+pub mod primal_dual;
 
 use core::fmt::Debug;
 
