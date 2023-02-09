@@ -25,7 +25,7 @@ use core::cmp::Ordering;
 use itertools::Itertools;
 
 use crate::account_id::{AccountId, Node};
-use crate::algo::{mcmf::Mcmf, FlowPath};
+use crate::algo::{mcmf::MinCostFlow, FlowPath};
 use crate::amount::Amount;
 use crate::obligation::Obligation;
 use crate::setoff::SetOff;
@@ -36,8 +36,8 @@ where
     ON: IntoIterator<Item = &'a O>,
     <ON as IntoIterator>::IntoIter: Clone,
     SO: SetOff<Amount = Amt, AccountId = AccId>,
-    Algo: Mcmf<Liabilities = BTreeMap<(Node<AccId>, Node<AccId>), Amt>, Amount = Amt>,
-    <Algo as Mcmf>::Path: FlowPath<Node = AccId>,
+    Algo: MinCostFlow<GraphIter = BTreeMap<(Node<AccId>, Node<AccId>), Amt>, EdgeCapacity = Amt>,
+    <Algo as MinCostFlow>::Path: FlowPath<Node = AccId>,
     AccId: AccountId,
     Amt: Amount,
 {
@@ -93,7 +93,7 @@ where
     let td: Amt = on_iter.clone().map(|o| o.amount()).sum();
 
     // run the (min-cost) max-flow algo
-    let (remained, paths) = algo.mcmf(&liabilities).unwrap();
+    let (remained, paths) = algo.min_cost_flow(&liabilities).unwrap();
 
     // calculate Net Internal Debt (NID) from the b vector
     let nid: Amt = net_position

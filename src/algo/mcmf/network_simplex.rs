@@ -1,14 +1,17 @@
-use crate::{FlowPath, Mcmf, Node};
+use crate::{FlowPath, MinCostFlow, Node};
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use mcmf::{Capacity, Cost, GraphBuilder, Path, Vertex};
 
+pub type NodeWeight = i32;
+pub type EdgeCapacity = i32;
+
 pub struct NetworkSimplex;
 
-impl FlowPath for Path<i32> {
-    type Node = i32;
-    type Flow = i32;
-    type Iter = Vec<i32>;
+impl FlowPath for Path<NodeWeight> {
+    type Node = NodeWeight;
+    type Flow = EdgeCapacity;
+    type Iter = Vec<NodeWeight>;
 
     fn nodes(&self) -> Self::Iter {
         self.vertices()
@@ -19,12 +22,12 @@ impl FlowPath for Path<i32> {
     }
 
     fn flow(&self) -> Self::Flow {
-        self.flows[0].amount as i32
+        self.flows[0].amount as EdgeCapacity
     }
 }
 
-impl From<Node<i32>> for Vertex<i32> {
-    fn from(value: Node<i32>) -> Self {
+impl From<Node<NodeWeight>> for Vertex<NodeWeight> {
+    fn from(value: Node<NodeWeight>) -> Self {
         match value {
             Node::Source => Vertex::Source,
             Node::Sink => Vertex::Sink,
@@ -33,24 +36,25 @@ impl From<Node<i32>> for Vertex<i32> {
     }
 }
 
-impl Mcmf for NetworkSimplex {
-    type AccountId = i32;
-    type Amount = i32;
-    type Liabilities = BTreeMap<(Node<i32>, Node<i32>), i32>;
+impl MinCostFlow for NetworkSimplex {
+    type NodeWeight = NodeWeight;
+    type EdgeCapacity = EdgeCapacity;
+    type EdgeCost = ();
+    type GraphIter = BTreeMap<(Node<NodeWeight>, Node<NodeWeight>), EdgeCapacity>;
     type Error = ();
-    type Path = Path<i32>;
+    type Path = Path<NodeWeight>;
 
-    fn mcmf(
+    fn min_cost_flow(
         &mut self,
-        liabilities: &Self::Liabilities,
-    ) -> Result<(Self::Amount, Vec<Self::Path>), Self::Error> {
+        graph_iter: &Self::GraphIter,
+    ) -> Result<(Self::EdgeCapacity, Vec<Self::Path>), Self::Error> {
         // build a graph from given obligation network
-        let g = liabilities.iter().fold(
+        let g = graph_iter.iter().fold(
             GraphBuilder::new(),
             |mut acc, ((debtor, creditor), amount)| {
                 acc.add_edge(
-                    Vertex::<i32>::from(*debtor),
-                    Vertex::<i32>::from(*creditor),
+                    Vertex::<NodeWeight>::from(*debtor),
+                    Vertex::<NodeWeight>::from(*creditor),
                     Capacity(*amount),
                     Cost(1),
                 );

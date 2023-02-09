@@ -1,19 +1,20 @@
+pub mod network_simplex;
+
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
 use crate::algo::FlowPath;
 
-pub mod network_simplex;
-
-pub trait Mcmf {
-    type AccountId;
-    type Amount;
-    type Liabilities;
+pub trait MinCostFlow {
+    type NodeWeight;
+    type EdgeCapacity;
+    type EdgeCost;
+    type GraphIter;
     type Error: Debug;
-    type Path: FlowPath<Flow = Self::Amount>;
+    type Path: FlowPath<Flow = Self::EdgeCapacity>;
 
-    fn mcmf(
+    fn min_cost_flow(
         &mut self,
-        liabilities: &Self::Liabilities,
-    ) -> Result<(Self::Amount, Vec<Self::Path>), Self::Error>;
+        graph_iter: &Self::GraphIter,
+    ) -> Result<(Self::EdgeCapacity, Vec<Self::Path>), Self::Error>;
 }
