@@ -1,10 +1,7 @@
+use crate::{FlowPath, Mcmf, Node};
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
-
 use mcmf::{Capacity, Cost, GraphBuilder, Path, Vertex};
-
-use crate::algo::{FlowPath, Mcmf};
-use crate::Node;
 
 pub struct NetworkSimplex;
 

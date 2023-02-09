@@ -25,7 +25,7 @@ use core::cmp::Ordering;
 use itertools::Itertools;
 
 use crate::account_id::{AccountId, Node};
-use crate::algo::{FlowPath, Mcmf};
+use crate::algo::{mcmf::Mcmf, FlowPath};
 use crate::amount::Amount;
 use crate::obligation::Obligation;
 use crate::setoff::SetOff;

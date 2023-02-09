@@ -9,7 +9,8 @@ use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
 use log::LevelFilter;
 use mtcs::{
-    algo::mcmf::NetworkSimplex, check, obligation::SimpleObligation, run, setoff::SimpleSetoff,
+    algo::mcmf::network_simplex::NetworkSimplex, check, obligation::SimpleObligation, run,
+    setoff::SimpleSetoff,
 };
 use num_traits::Zero;
 use serde::{de::DeserializeOwned, Serialize};
