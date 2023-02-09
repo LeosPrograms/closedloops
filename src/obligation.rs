@@ -1,7 +1,7 @@
 use num_traits::Zero;
 use serde::Deserialize;
 
-use crate::Error;
+use crate::error::Error;
 
 pub trait ObligationTrait {
     type AccountId;

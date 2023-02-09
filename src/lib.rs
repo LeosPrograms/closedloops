@@ -9,30 +9,22 @@
 )]
 #![forbid(unsafe_code)]
 
-extern crate alloc;
-
 pub mod algo;
+pub mod error;
 pub mod obligation;
 pub mod setoff;
+
+extern crate alloc;
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
 
-use displaydoc::Display;
 use itertools::Itertools;
 
 use crate::algo::FlowPath;
 use crate::algo::Mcmf;
 use crate::obligation::ObligationTrait;
 use crate::setoff::SetOffNoticeTrait;
-
-#[derive(Clone, Display)]
-pub enum Error {
-    /// Invalid obligation where debtor and creditor are the same
-    ObligationToSelf,
-    /// Invalid obligation amount, expected positive value
-    NonPositiveAmount,
-}
 
 pub fn run<'a, O, ON, SO, Algo>(on: ON, mut algo: Algo) -> Vec<SO>
 where
