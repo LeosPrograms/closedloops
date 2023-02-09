@@ -24,7 +24,7 @@ use core::cmp::Ordering;
 
 use itertools::Itertools;
 
-use crate::account_id::AccountIdTrait;
+use crate::account_id::{AccountIdTrait, Node};
 use crate::algo::{FlowPath, Mcmf};
 use crate::amount::AmountTrait;
 use crate::obligation::ObligationTrait;
@@ -36,7 +36,7 @@ where
     ON: IntoIterator<Item = &'a O>,
     <ON as IntoIterator>::IntoIter: Clone,
     SO: SetOffNoticeTrait<Amount = Amount, AccountId = AccountId>,
-    Algo: Mcmf<Liabilities = BTreeMap<(AccountId, AccountId), Amount>, Amount = Amount>,
+    Algo: Mcmf<Liabilities = BTreeMap<(Node<AccountId>, Node<AccountId>), Amount>, Amount = Amount>,
     <Algo as Mcmf>::Path: FlowPath<Node = AccountId>,
     AccountId: AccountIdTrait,
     Amount: AmountTrait,
@@ -71,7 +71,8 @@ where
     });
 
     let mut liabilities = liabilities.into_iter().fold(BTreeMap::new(), |mut acc, o| {
-        *acc.entry((o.debtor(), o.creditor())).or_default() += o.amount();
+        *acc.entry((o.debtor().into(), o.creditor().into()))
+            .or_default() += o.amount();
         acc
     });
 
@@ -80,10 +81,10 @@ where
         .iter()
         .for_each(|(firm, balance)| match balance.cmp(&Amount::zero()) {
             Ordering::Less => {
-                liabilities.insert((AccountId::source(), firm.clone()), -*balance);
+                liabilities.insert((Node::Source, firm.clone().into()), -*balance);
             }
             Ordering::Greater => {
-                liabilities.insert((firm.clone(), AccountId::sink()), *balance);
+                liabilities.insert((firm.clone().into(), Node::Sink), *balance);
             }
             Ordering::Equal => {}
         });
@@ -111,7 +112,7 @@ where
 
                 tc -= path.flow();
                 liabilities
-                    .entry((w1, w2))
+                    .entry((w1.into(), w2.into()))
                     .and_modify(|e| *e -= path.flow());
             })
     });
@@ -126,13 +127,16 @@ where
 
     // add heads and tails back
     let mut liabilities = heads_tails.into_iter().fold(liabilities, |mut acc, o| {
-        *acc.entry((o.debtor(), o.creditor())).or_default() += o.amount();
+        *acc.entry((o.debtor().into(), o.creditor().into()))
+            .or_default() += o.amount();
         acc
     });
 
     // check that all remainders are zero
     let remainders = on_iter.clone().fold(BTreeMap::new(), |mut acc, o| {
-        let flow = liabilities.get(&(o.debtor(), o.creditor())).unwrap();
+        let flow = liabilities
+            .get(&(o.debtor().into(), o.creditor().into()))
+            .unwrap();
         let remainder = if *flow > o.amount() {
             *flow - o.amount()
         } else {
@@ -151,8 +155,11 @@ where
     // Assign cleared amounts to individual obligations
     on_iter
         .clone()
-        .flat_map(
-            |o| match liabilities.get_mut(&(o.debtor(), o.creditor())).unwrap() {
+        .flat_map(|o| {
+            match liabilities
+                .get_mut(&(o.debtor().into(), o.creditor().into()))
+                .unwrap()
+            {
                 x if x.is_zero() => None,
                 x if *x < o.amount() => {
                     let oldx = *x;
@@ -177,8 +184,8 @@ where
                         Amount::zero(),
                     ))
                 }
-            },
-        )
+            }
+        })
         .collect()
 }
 

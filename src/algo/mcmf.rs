@@ -1,9 +1,10 @@
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
-use mcmf::{Capacity, Cost, GraphBuilder, Path};
+use mcmf::{Capacity, Cost, GraphBuilder, Path, Vertex};
 
 use crate::algo::{FlowPath, Mcmf};
+use crate::Node;
 
 pub struct NetworkSimplex;
 
@@ -25,10 +26,20 @@ impl FlowPath for Path<i32> {
     }
 }
 
+impl From<Node<i32>> for Vertex<i32> {
+    fn from(value: Node<i32>) -> Self {
+        match value {
+            Node::Source => Vertex::Source,
+            Node::Sink => Vertex::Sink,
+            Node::WithId(id) => Vertex::Node(id),
+        }
+    }
+}
+
 impl Mcmf for NetworkSimplex {
     type AccountId = i32;
     type Amount = i32;
-    type Liabilities = BTreeMap<(i32, i32), i32>;
+    type Liabilities = BTreeMap<(Node<i32>, Node<i32>), i32>;
     type Error = ();
     type Path = Path<i32>;
 
@@ -40,7 +51,12 @@ impl Mcmf for NetworkSimplex {
         let g = liabilities.iter().fold(
             GraphBuilder::new(),
             |mut acc, ((debtor, creditor), amount)| {
-                acc.add_edge(*debtor, *creditor, Capacity(*amount), Cost(1));
+                acc.add_edge(
+                    Vertex::<i32>::from(*debtor),
+                    Vertex::<i32>::from(*creditor),
+                    Capacity(*amount),
+                    Cost(1),
+                );
                 acc
             },
         );
