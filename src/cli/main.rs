@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
 use log::LevelFilter;
-use mtcs::{check, run, Obligation, SetoffNotice};
+use mtcs::{algo::mcmf::NetworkSimplex, check, run, Obligation, SetoffNotice};
 use num_traits::Zero;
 use serde::{de::DeserializeOwned, Serialize};
 use simplelog::{Config as SimpleLoggerConfig, SimpleLogger};
@@ -80,7 +80,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let on: Vec<Obligation<i32, i32>> = read_obligations_csv(&input_file);
 
     // Run the MTCS algorithm
-    let res = run(on);
+    let now = std::time::Instant::now();
+    let res = run(&on, NetworkSimplex);
+    let elapsed = now.elapsed();
+    log::info!("Run time: {elapsed:?}");
+
     check(&res);
 
     // Write the result to the output CSV file

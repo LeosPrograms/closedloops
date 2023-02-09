@@ -11,14 +11,18 @@
 
 extern crate alloc;
 
-mod algo;
+pub mod algo;
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
 
 use displaydoc::Display;
+use itertools::Itertools;
 use num_traits::Zero;
 use serde::{Deserialize, Serialize};
+
+use crate::algo::FlowPath;
+use crate::algo::Mcmf;
 
 //
 // Define the Obligation network
@@ -208,12 +212,18 @@ where
     }
 }
 
-pub fn run<'a, O, ON, SO>(on: ON) -> Vec<SO>
+pub fn run<'a, O, ON, SO, Algo>(on: ON, mut algo: Algo) -> Vec<SO>
 where
     O: 'a + ObligationTrait<Amount = i32, AccountId = i32>,
     ON: IntoIterator<Item = &'a O>,
     <ON as IntoIterator>::IntoIter: Clone,
     SO: SetOffNoticeTrait<Amount = i32, AccountId = i32>,
+    Algo: Mcmf<
+        Liabilities = BTreeMap<(i32, i32), i32>,
+        NetPositions = BTreeMap<i32, i32>,
+        Amount = i32,
+    >,
+    <Algo as Mcmf>::Path: FlowPath<Node = i32>,
 {
     let on_iter = on.into_iter();
 
@@ -251,7 +261,7 @@ where
     let td = on_iter.clone().map(|o| o.amount() as i64).sum();
 
     // run the (min-cost) max-flow algo
-    let (remained, paths) = algo::mcmf::network_simplex(&liabilities, &net_position);
+    let (remained, paths) = algo.mcmf(&liabilities, &net_position).unwrap();
 
     // calculate Net Internal Debt (NID) from the b vector
     let nid: i32 = net_position
@@ -262,20 +272,16 @@ where
     // substract minimum cost maximum flow from the liabilities to get the clearing solution
     let mut tc: i64 = td;
     paths.into_iter().for_each(|path| {
-        path.vertices()
-            .windows(2)
-            .filter(|w| w[0].as_option().is_some() & w[1].as_option().is_some())
-            .for_each(|w| {
-                log::trace!(
-                    "{} --> {}",
-                    w[0].as_option().unwrap(),
-                    w[1].as_option().unwrap()
-                );
+        path.nodes()
+            .into_iter()
+            .tuple_windows()
+            .for_each(|(w1, w2)| {
+                log::trace!("{} --> {}", w1, w2);
 
-                tc -= i64::from(path.flows[0].amount);
+                tc -= i64::from(path.flow());
                 liabilities
-                    .entry((w[0].as_option().unwrap(), w[1].as_option().unwrap()))
-                    .and_modify(|e| *e -= i32::try_from(path.flows[0].amount).unwrap());
+                    .entry((w1, w2))
+                    .and_modify(|e| *e -= i32::try_from(path.flow()).unwrap());
             })
     });
 
