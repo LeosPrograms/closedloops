@@ -22,10 +22,8 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 
-use itertools::Itertools;
-
 use crate::account_id::{AccountId, Node};
-use crate::algo::{mcmf::MinCostFlow, FlowPath};
+use crate::algo::mcmf::MinCostFlow;
 use crate::amount::Amount;
 use crate::obligation::Obligation;
 use crate::setoff::SetOff;
@@ -37,7 +35,7 @@ where
     <ON as IntoIterator>::IntoIter: Clone,
     SO: SetOff<Amount = Amt, AccountId = AccId>,
     Algo: MinCostFlow<GraphIter = BTreeMap<(Node<AccId>, Node<AccId>), Amt>, EdgeCapacity = Amt>,
-    <Algo as MinCostFlow>::Path: FlowPath<Node = AccId>,
+    <Algo as MinCostFlow>::Paths: IntoIterator<Item = ((AccId, AccId), Amt)>,
     AccId: AccountId,
     Amt: Amount,
 {
@@ -103,18 +101,13 @@ where
 
     // substract minimum cost maximum flow from the liabilities to get the clearing solution
     let mut tc = td;
-    paths.into_iter().for_each(|path| {
-        path.nodes()
-            .into_iter()
-            .tuple_windows()
-            .for_each(|(w1, w2)| {
-                log::trace!("{:?} --> {:?}", w1, w2);
+    paths.into_iter().for_each(|((n1, n2), amount)| {
+        log::trace!("{:?} --> {:?}", n1, n2);
 
-                tc -= path.flow();
-                liabilities
-                    .entry((w1.into(), w2.into()))
-                    .and_modify(|e| *e -= path.flow());
-            })
+        tc -= amount;
+        liabilities
+            .entry((n1.into(), n2.into()))
+            .and_modify(|e| *e -= amount);
     });
 
     // Print key results and check for correct sums
