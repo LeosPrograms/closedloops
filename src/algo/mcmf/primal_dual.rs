@@ -88,31 +88,31 @@ where
 
         let distance_s_t = distance[&Node::Sink];
 
-        loop {
-            // we define our admissable graph as a subgraph composed of edges that have a
-            // `cost <= distance-to-sink` (i.e. `distance_s_t`) and `capacity > 0`
-            let admissable_graph = EdgeFiltered::from_fn(&graph, |(_, _, e)| {
-                e.cost <= distance_s_t && e.capacity > Uint::zero()
-            });
-            let path = push_relabel_max_flow(&admissable_graph, Node::Source, Node::Sink).unwrap();
-            if path.is_empty() {
-                break;
-            }
+        // we define our admissable graph as a subgraph composed of edges that have a
+        // `cost <= distance-to-sink` (i.e. `distance_s_t`) and `capacity > 0`
+        let admissable_graph = EdgeFiltered::from_fn(&graph, |(_, _, e)| {
+            e.cost <= distance_s_t && e.capacity > Uint::zero()
+        });
 
-            max_flow += path
-                .iter()
-                .filter_map(|((debtor, _), cap)| (debtor == &Node::Source).then_some(*cap))
-                .sum();
-
-            path.into_iter().for_each(|(edge, amount)| {
-                let EdgeWeight { capacity, .. } = &mut graph[edge];
-                *capacity -= amount;
-
-                if let (Node::WithId(n1), Node::WithId(n2)) = edge {
-                    *paths.entry((n1, n2)).or_default() += amount;
-                }
-            });
+        let path = push_relabel_max_flow(&admissable_graph, Node::Source, Node::Sink).unwrap();
+        let path_flow = path
+            .iter()
+            .filter_map(|((debtor, _), cap)| (debtor == &Node::Source).then_some(*cap))
+            .sum();
+        if path_flow == Uint::zero() {
+            break;
         }
+
+        max_flow += path_flow;
+
+        path.into_iter().for_each(|(edge, amount)| {
+            let EdgeWeight { capacity, .. } = &mut graph[edge];
+            *capacity -= amount;
+
+            if let (Node::WithId(n1), Node::WithId(n2)) = edge {
+                *paths.entry((n1, n2)).or_default() += amount;
+            }
+        });
     }
 
     (max_flow, paths)
