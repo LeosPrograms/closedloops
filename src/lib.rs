@@ -18,7 +18,7 @@ pub mod setoff;
 
 extern crate alloc;
 
-use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 
@@ -50,25 +50,7 @@ where
             acc
         });
 
-    // create a list of peripheral 'head/tail' nodes (i.e. nodes which are only either creditors or
-    // debtors and therefore cannot be part of a cycle.
-    let (debtors, creditors) = on_iter.clone().fold(
-        (BTreeSet::new(), BTreeSet::new()),
-        |(mut debtors, mut creditors), o| {
-            debtors.insert(o.debtor());
-            creditors.insert(o.creditor());
-            (debtors, creditors)
-        },
-    );
-    let peripheral_nodes: Vec<_> = debtors.symmetric_difference(&creditors).collect();
-
-    // build a map of liabilities, i.e. (debtor, creditor) v/s amount, ignoring peripheral nodes and
-    // their obligations
-    let (heads_tails, liabilities): (Vec<_>, Vec<_>) = on_iter.clone().partition(|o| {
-        peripheral_nodes.contains(&&o.debtor()) || peripheral_nodes.contains(&&o.creditor())
-    });
-
-    let mut liabilities = liabilities.into_iter().fold(BTreeMap::new(), |mut acc, o| {
+    let mut liabilities = on_iter.clone().fold(BTreeMap::new(), |mut acc, o| {
         *acc.entry((o.debtor().into(), o.creditor().into()))
             .or_default() += o.amount();
         acc
@@ -117,13 +99,6 @@ where
     log::info!("Total remainder = {remained:?}");
     log::info!("  Total cleared = {tc:?}");
     // assert_eq!(td, remained + tc);
-
-    // add heads and tails back
-    let mut liabilities = heads_tails.into_iter().fold(liabilities, |mut acc, o| {
-        *acc.entry((o.debtor().into(), o.creditor().into()))
-            .or_default() += o.amount();
-        acc
-    });
 
     // check that all remainders are zero
     let remainders = on_iter.clone().fold(BTreeMap::new(), |mut acc, o| {
