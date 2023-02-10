@@ -82,7 +82,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Read the obligations from the input CSV file
     let input_file = File::open(args.input_file)?;
-    let on: Vec<SimpleObligation<i32, i32>> = read_obligations_csv(&input_file);
+    let on: Vec<SimpleObligation<i32, i64>> = read_obligations_csv(&input_file);
 
     // Run the MTCS algorithm
     let now = std::time::Instant::now();

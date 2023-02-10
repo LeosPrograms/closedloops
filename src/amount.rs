@@ -23,3 +23,4 @@ pub trait Amount:
 }
 
 impl Amount for i32 {}
+impl Amount for i64 {}
