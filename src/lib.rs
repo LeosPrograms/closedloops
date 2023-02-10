@@ -147,7 +147,6 @@ where
 
     // Assign cleared amounts to individual obligations
     on_iter
-        .clone()
         .map(|o| {
             match liabilities
                 .get_mut(&(o.debtor().into(), o.creditor().into()))
