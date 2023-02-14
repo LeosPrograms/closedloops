@@ -8,7 +8,12 @@ use std::path::PathBuf;
 use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
 use log::LevelFilter;
-use mtcs::{max_flow_network_simplex, ObligationNetwork, SetoffNotice};
+use mtcs::{
+    algo::mcmf::network_simplex::NetworkSimplex, check, obligation::SimpleObligation, run,
+    setoff::SimpleSetoff,
+};
+use num_traits::Zero;
+use serde::{de::DeserializeOwned, Serialize};
 use simplelog::{Config as SimpleLoggerConfig, SimpleLogger};
 
 /// Tool for running Multilateral Trade Credit Set-off (MTCS) on an obligation network
@@ -29,15 +34,27 @@ struct Args {
 }
 
 // Read the obligations from CSV file
-fn read_obligations_csv(reader: impl Read, _has_headers: bool) -> ObligationNetwork {
+fn read_obligations_csv<AccountId, Amount>(
+    reader: impl Read,
+) -> Vec<SimpleObligation<AccountId, Amount>>
+where
+    AccountId: PartialEq + DeserializeOwned,
+    Amount: PartialOrd + Zero + DeserializeOwned,
+{
     let mut rdr = CsvReader::from_reader(reader);
     let rows: Result<Vec<_>, _> = rdr.deserialize().collect();
-    let rows = rows.unwrap();
-    ObligationNetwork { rows }
+    rows.unwrap()
 }
 
 // Write the clearing results to CSV file
-fn write_csv(res: Vec<SetoffNotice>, writer: impl Write) -> Result<(), Box<dyn Error>> {
+fn write_csv<AccountId, Amount>(
+    res: Vec<SimpleSetoff<AccountId, Amount>>,
+    writer: impl Write,
+) -> Result<(), Box<dyn Error>>
+where
+    AccountId: Serialize,
+    Amount: Serialize,
+{
     let mut wtr = CsvWriter::from_writer(writer);
     for setoff in res {
         wtr.serialize(setoff)?;
@@ -65,10 +82,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Read the obligations from the input CSV file
     let input_file = File::open(args.input_file)?;
-    let on = read_obligations_csv(&input_file, true);
+    let on: Vec<SimpleObligation<i32, i32>> = read_obligations_csv(&input_file);
 
     // Run the MTCS algorithm
-    let res = max_flow_network_simplex(on);
+    let now = std::time::Instant::now();
+    let res = run(on, NetworkSimplex).expect("MTCS run failed");
+    let elapsed = now.elapsed();
+    log::info!("Run time: {elapsed:?}");
+
+    check(&res);
 
     // Write the result to the output CSV file
     let output_file = File::create(args.output_file)?;
