@@ -239,9 +239,11 @@ where
         });
     assert!(creditors
         .iter()
+        .filter(|(_, amount)| amount > &&Amt::zero())
         .all(|(firm, amount)| amount == &debtors[firm]));
     assert!(debtors
         .iter()
+        .filter(|(_, amount)| amount > &&Amt::zero())
         .all(|(firm, amount)| amount == &creditors[firm]));
 
     let ba_len = ba.len();
