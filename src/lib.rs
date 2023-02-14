@@ -50,36 +50,39 @@ where
             acc
         });
 
-    let mut liabilities = on_iter.clone().fold(BTreeMap::new(), |mut acc, o| {
+    let liabilities = on_iter.clone().fold(BTreeMap::new(), |mut acc, o| {
         *acc.entry((o.debtor().into(), o.creditor().into()))
             .or_default() += o.amount();
         acc
     });
 
     // Add source and sink flows based on values of "b" vector
-    net_position
+    let mut liabilities = net_position
         .iter()
-        .for_each(|(firm, balance)| match balance.cmp(&Amt::zero()) {
-            Ordering::Less => {
-                liabilities.insert((Node::Source, firm.clone().into()), -*balance);
+        .fold(liabilities, |mut acc, (firm, balance)| {
+            match balance.cmp(&Amt::zero()) {
+                Ordering::Less => {
+                    acc.insert((Node::Source, firm.clone().into()), -*balance);
+                }
+                Ordering::Greater => {
+                    acc.insert((firm.clone().into(), Node::Sink), *balance);
+                }
+                Ordering::Equal => {}
             }
-            Ordering::Greater => {
-                liabilities.insert((firm.clone().into(), Node::Sink), *balance);
-            }
-            Ordering::Equal => {}
+            acc
         });
-
-    // calculate total debt
-    let td: Amt = on_iter.clone().map(|o| o.amount()).sum();
-
-    // run the (min-cost) max-flow algo
-    let (remained, paths) = algo.min_cost_flow(&liabilities).unwrap();
 
     // calculate Net Internal Debt (NID) from the b vector
     let nid: Amt = net_position
         .into_values()
         .filter(|balance| balance > &Amt::default())
         .sum();
+
+    // calculate total debt
+    let td: Amt = on_iter.clone().map(|o| o.amount()).sum();
+
+    // run the (min-cost) max-flow algo
+    let (remained, paths) = algo.min_cost_flow(&liabilities).unwrap();
 
     // substract minimum cost maximum flow from the liabilities to get the clearing solution
     let mut tc = td;
