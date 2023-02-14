@@ -8,7 +8,7 @@ use petgraph::visit::{EdgeRef, IntoEdgeReferences, IntoNodeIdentifiers};
 use petgraph::Graph;
 
 use crate::algo::mcmf::primal_dual::EdgeWeight;
-use crate::amount::Amount;
+use crate::int::Int;
 
 pub type NodePair<NodeId> = (NodeId, NodeId);
 
@@ -59,14 +59,14 @@ struct State<N, Int> {
 type PRGraph<N, Int> = Graph<Node<N, Int>, ()>;
 type NodeId = NodeIndex<u32>;
 
-impl<N: Copy + Ord, Int: Amount + CheckedAdd> State<N, Int> {
+impl<N: Copy + Ord, I: Int + CheckedAdd> State<N, I> {
     fn push(&mut self, u: NodeId, v: NodeId) -> Result<(), MaxFlowError> {
         let new_flow = {
             let u_data = self.graph.node_weight(u).unwrap();
             let v_data = self.graph.node_weight(v).unwrap();
             let e_data = self.edges.get(&(u, v)).unwrap();
 
-            debug_assert!(u_data.excess > Int::zero());
+            debug_assert!(u_data.excess > I::zero());
             debug_assert!(u_data.label == v_data.label + 1);
 
             min(u_data.excess, e_data.capacity - e_data.flow)
@@ -87,8 +87,8 @@ impl<N: Copy + Ord, Int: Amount + CheckedAdd> State<N, Int> {
         self.has_capacity(u, v) && self.graph[u].label == self.graph[v].label + 1
     }
 
-    fn add_excess(&mut self, u: NodeId, amount: Int) -> Result<(), MaxFlowError> {
-        debug_assert!(amount != Int::zero());
+    fn add_excess(&mut self, u: NodeId, amount: I) -> Result<(), MaxFlowError> {
+        debug_assert!(amount != I::zero());
 
         // The target node never has any excess inflow, since it can just gobble it up.
         if u == self.target {
@@ -99,8 +99,8 @@ impl<N: Copy + Ord, Int: Amount + CheckedAdd> State<N, Int> {
         // We should never try to push more flow than the node has available.
         // There is one special case: the start node always has non-positive
         // excess flow.
-        debug_assert!(node.excess <= Int::zero() || node.excess >= -amount);
-        if node.excess == Int::zero() {
+        debug_assert!(node.excess <= I::zero() || node.excess >= -amount);
+        if node.excess == I::zero() {
             // We weren't active before, but we are now.
             self.active_queue.push_back(u);
         }
@@ -114,7 +114,7 @@ impl<N: Copy + Ord, Int: Amount + CheckedAdd> State<N, Int> {
     // Keep pushing excess flow to neighbors until we can't any more.
     fn discharge(&mut self, u: NodeId) -> Result<(), MaxFlowError> {
         let mut nbrs = self.graph.neighbors(u).detach();
-        while self.graph[u].excess > Int::zero() {
+        while self.graph[u].excess > I::zero() {
             if let Some(v) = nbrs.next_node(&self.graph) {
                 if self.can_push(u, v) {
                     self.push(u, v)?;
@@ -138,9 +138,9 @@ impl<N: Copy + Ord, Int: Amount + CheckedAdd> State<N, Int> {
         self.graph.node_weight_mut(u).unwrap().label = min_nbr_label + 1;
     }
 
-    fn new<G>(g: G, source: G::NodeId, target: G::NodeId) -> State<G::NodeId, Int>
+    fn new<G>(g: G, source: G::NodeId, target: G::NodeId) -> State<G::NodeId, I>
     where
-        G: IntoEdgeReferences<EdgeWeight = EdgeWeight<Int, Int>, NodeId = N> + IntoNodeIdentifiers,
+        G: IntoEdgeReferences<EdgeWeight = EdgeWeight<I, I>, NodeId = N> + IntoNodeIdentifiers,
         G::NodeId: Hash + Eq,
     {
         // Map from nodes of `g` to nodes in `pr_graph`.
@@ -156,7 +156,7 @@ impl<N: Copy + Ord, Int: Amount + CheckedAdd> State<N, Int> {
             let u = node_map[&e.source()];
             let v = node_map[&e.target()];
             pr_graph.add_edge(u, v, ());
-            edges.insert((u, v), Edge::new(max(e.weight().capacity, Int::zero())));
+            edges.insert((u, v), Edge::new(max(e.weight().capacity, I::zero())));
         }
 
         // The algorithm requires that every edge has its reversal present.
@@ -164,7 +164,7 @@ impl<N: Copy + Ord, Int: Amount + CheckedAdd> State<N, Int> {
             let u = node_map[&e.source()];
             let v = node_map[&e.target()];
             if let Vacant(e) = edges.entry((v, u)) {
-                e.insert(Edge::new(Int::zero()));
+                e.insert(Edge::new(I::zero()));
                 pr_graph.add_edge(v, u, ());
             }
         }
@@ -214,15 +214,15 @@ impl<N: Copy + Ord, Int: Amount + CheckedAdd> State<N, Int> {
 /// overflow occurred.
 ///
 /// Panics if `source` or `target` is an invalid node index for `g`.
-pub fn push_relabel_max_flow<G, Int>(
+pub fn push_relabel_max_flow<G, I>(
     g: G,
     source: G::NodeId,
     target: G::NodeId,
-) -> Result<BTreeMap<NodePair<G::NodeId>, Int>, MaxFlowError>
+) -> Result<BTreeMap<NodePair<G::NodeId>, I>, MaxFlowError>
 where
-    G: IntoEdgeReferences<EdgeWeight = EdgeWeight<Int, Int>> + IntoNodeIdentifiers,
+    G: IntoEdgeReferences<EdgeWeight = EdgeWeight<I, I>> + IntoNodeIdentifiers,
     G::NodeId: Clone + Hash + Eq + Ord,
-    Int: Amount + CheckedAdd,
+    I: Int + CheckedAdd,
 {
     let mut state = State::new(g, source, target);
     state.run()?;
@@ -231,7 +231,7 @@ where
     let flow = state
         .edges
         .into_iter()
-        .filter(|(_, data)| data.flow > Int::zero())
+        .filter(|(_, data)| data.flow > I::zero())
         .map(|((u, v), data)| ((graph[u].orig_id, graph[v].orig_id), data.flow))
         .collect::<BTreeMap<_, _>>();
 

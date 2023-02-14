@@ -9,10 +9,10 @@
 )]
 #![forbid(unsafe_code)]
 
-pub mod account_id;
 pub mod algo;
-pub mod amount;
 pub mod error;
+pub mod id;
+pub mod int;
 pub mod node;
 pub mod obligation;
 pub mod setoff;
@@ -24,10 +24,10 @@ use alloc::format;
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 
-use crate::account_id::AccountId;
 use crate::algo::mcmf::MinCostFlow;
-use crate::amount::Amount;
 use crate::error::Error;
+use crate::id::Id;
+use crate::int::Int;
 use crate::node::Node;
 use crate::obligation::Obligation;
 use crate::setoff::SetOff;
@@ -39,8 +39,8 @@ where
     SO: SetOff<Amount = Amt, AccountId = AccId>,
     Algo: MinCostFlow<GraphIter = BTreeMap<(Node<AccId>, Node<AccId>), Amt>, EdgeCapacity = Amt>,
     <Algo as MinCostFlow>::Paths: IntoIterator<Item = ((AccId, AccId), Amt)>,
-    AccId: AccountId,
-    Amt: Amount,
+    AccId: Id,
+    Amt: Int,
 {
     // calculate the b vector
     let net_position = on.iter().fold(BTreeMap::<_, Amt>::new(), |mut acc, o| {
@@ -174,10 +174,10 @@ where
 pub fn check<SO, AccId, Amt>(setoffs: &[SO])
 where
     SO: SetOff<AccountId = AccId, Amount = Amt>,
-    AccId: AccountId,
-    Amt: Amount,
+    AccId: Id,
+    Amt: Int,
 {
-    fn assert_eq_pos_neg<AccId, Amt: Amount>(b: &BTreeMap<AccId, Amt>) {
+    fn assert_eq_pos_neg<AccId, Amt: Int>(b: &BTreeMap<AccId, Amt>) {
         let pos_b: Amt = b
             .values()
             .cloned()

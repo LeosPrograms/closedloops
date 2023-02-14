@@ -5,7 +5,7 @@ use core::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 use num_traits::{One, Zero};
 
 /// A trait representing an amount type which is typically an integer.
-pub trait Amount:
+pub trait Int:
     Copy
     + Sum<Self>
     + Add<Output = Self>
@@ -22,5 +22,5 @@ pub trait Amount:
 {
 }
 
-impl Amount for i32 {}
-impl Amount for i64 {}
+impl Int for i32 {}
+impl Int for i64 {}

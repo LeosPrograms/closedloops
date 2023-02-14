@@ -1,18 +1,18 @@
-use crate::AccountId;
+use crate::Id;
 
 /// A node type used to model a balanced obligation network.
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Hash)]
-pub enum Node<Id> {
+pub enum Node<N> {
     Source,
     Sink,
-    WithId(Id),
+    WithId(N),
 }
 
-impl<Id> From<Id> for Node<Id>
+impl<N> From<N> for Node<N>
 where
-    Id: AccountId,
+    N: Id,
 {
-    fn from(id: Id) -> Self {
+    fn from(id: N) -> Self {
         Self::WithId(id)
     }
 }
