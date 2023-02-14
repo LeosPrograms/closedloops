@@ -104,7 +104,7 @@ where
     log::info!("  Total cleared = {tc:?}");
     // assert_eq!(td, remained + tc);
 
-    // check that all remainders are zero
+    // check that b-vec of remainders is all zeros
     let remainders = on.iter().fold(BTreeMap::new(), |mut acc, o| {
         let flow = liabilities
             .get(&(o.debtor().into(), o.creditor().into()))
@@ -177,6 +177,23 @@ where
     AccId: AccountId,
     Amt: Amount,
 {
+    fn assert_eq_pos_neg<AccId, Amt: Amount>(b: &BTreeMap<AccId, Amt>) {
+        let pos_b: Amt = b
+            .values()
+            .cloned()
+            .filter(|amount| amount > &Amt::zero())
+            .sum();
+
+        let neg_b = b
+            .values()
+            .cloned()
+            .filter(|amount| amount < &Amt::zero())
+            .sum::<Amt>()
+            .neg();
+
+        assert_eq!(pos_b, neg_b);
+    }
+
     // ba - net balance positions of the obligation network
     let ba = setoffs.iter().fold(BTreeMap::<_, _>::new(), |mut acc, so| {
         *acc.entry(so.creditor()).or_default() += so.amount();
@@ -191,14 +208,41 @@ where
         acc
     });
 
-    assert!(ba.iter().all(|(firm, amount)| amount == &bl[firm]));
-
     // bc - net balance positions of the cyclic network
     let bc = setoffs.iter().fold(BTreeMap::<_, _>::new(), |mut acc, so| {
         *acc.entry(so.creditor()).or_default() += so.setoff();
         *acc.entry(so.debtor()).or_default() -= so.setoff();
         acc
     });
+
+    // SUM(+NID) == SUM(-NID) for all b-vectors
+    assert_eq_pos_neg(&ba);
+    assert_eq_pos_neg(&bc);
+    assert_eq_pos_neg(&bl);
+
+    // ba == bl
+    assert!(ba.iter().all(|(firm, amount)| amount == &bl[firm]));
+
+    // set-off consistency check
+    // (i.e. the sum of all set-off amounts where Alice is a debtor equals the sum of all set-off amounts where Alice is a creditor)
+    let debtors = setoffs
+        .iter()
+        .fold(BTreeMap::<_, Amt>::new(), |mut acc, so| {
+            *acc.entry(so.debtor()).or_default() += so.setoff();
+            acc
+        });
+    let creditors = setoffs
+        .iter()
+        .fold(BTreeMap::<_, Amt>::new(), |mut acc, so| {
+            *acc.entry(so.creditor()).or_default() += so.setoff();
+            acc
+        });
+    assert!(creditors
+        .iter()
+        .all(|(firm, amount)| amount == &debtors[firm]));
+    assert!(debtors
+        .iter()
+        .all(|(firm, amount)| amount == &creditors[firm]));
 
     let ba_len = ba.len();
     let nid_a: Amt = ba
@@ -213,6 +257,9 @@ where
         .into_values()
         .filter(|amount| amount > &Amt::zero())
         .sum();
+
+    // NID before and after algo run must be the same
+    assert_eq!(nid_a, nid_l);
 
     let debt_before: Amt = setoffs.iter().map(|s| s.amount()).sum();
     let debt_after: Amt = setoffs.iter().map(|s| s.remainder()).sum();
