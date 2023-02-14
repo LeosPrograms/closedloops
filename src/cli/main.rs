@@ -86,7 +86,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Run the MTCS algorithm
     let now = std::time::Instant::now();
-    let res = run(&on, NetworkSimplex);
+    let res = run(on, NetworkSimplex);
     let elapsed = now.elapsed();
     log::info!("Run time: {elapsed:?}");
 

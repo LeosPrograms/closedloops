@@ -31,29 +31,23 @@ use crate::obligation::Obligation;
 use crate::setoff::SetOff;
 
 /// Run the specified clearing algorithm on the given obligation network and generate setoff notices
-pub fn run<'a, O, ON, SO, Algo, AccId, Amt>(on: ON, mut algo: Algo) -> Vec<SO>
+pub fn run<O, SO, Algo, AccId, Amt>(on: Vec<O>, mut algo: Algo) -> Vec<SO>
 where
-    O: 'a + Obligation<Amount = Amt, AccountId = AccId>,
-    ON: IntoIterator<Item = &'a O>,
-    <ON as IntoIterator>::IntoIter: Clone,
+    O: Obligation<Amount = Amt, AccountId = AccId>,
     SO: SetOff<Amount = Amt, AccountId = AccId>,
     Algo: MinCostFlow<GraphIter = BTreeMap<(Node<AccId>, Node<AccId>), Amt>, EdgeCapacity = Amt>,
     <Algo as MinCostFlow>::Paths: IntoIterator<Item = ((AccId, AccId), Amt)>,
     AccId: AccountId,
     Amt: Amount,
 {
-    let on_iter = on.into_iter();
-
     // calculate the b vector
-    let net_position = on_iter
-        .clone()
-        .fold(BTreeMap::<_, Amt>::new(), |mut acc, o| {
-            *acc.entry(o.creditor()).or_default() += o.amount(); // credit increases the net balance
-            *acc.entry(o.debtor()).or_default() -= o.amount(); // debit decreases the net balance
-            acc
-        });
+    let net_position = on.iter().fold(BTreeMap::<_, Amt>::new(), |mut acc, o| {
+        *acc.entry(o.creditor()).or_default() += o.amount(); // credit increases the net balance
+        *acc.entry(o.debtor()).or_default() -= o.amount(); // debit decreases the net balance
+        acc
+    });
 
-    let liabilities = on_iter.clone().fold(BTreeMap::new(), |mut acc, o| {
+    let liabilities = on.iter().fold(BTreeMap::new(), |mut acc, o| {
         *acc.entry((o.debtor().into(), o.creditor().into()))
             .or_default() += o.amount();
         acc
@@ -82,7 +76,7 @@ where
         .sum();
 
     // calculate total debt
-    let td: Amt = on_iter.clone().map(|o| o.amount()).sum();
+    let td: Amt = on.iter().map(|o| o.amount()).sum();
 
     // run the (min-cost) max-flow algo
     let (remained, paths) = algo.min_cost_flow(&liabilities).unwrap();
@@ -107,7 +101,7 @@ where
     // assert_eq!(td, remained + tc);
 
     // check that all remainders are zero
-    let remainders = on_iter.clone().fold(BTreeMap::new(), |mut acc, o| {
+    let remainders = on.iter().fold(BTreeMap::new(), |mut acc, o| {
         let flow = liabilities
             .get(&(o.debtor().into(), o.creditor().into()))
             .unwrap();
@@ -127,7 +121,7 @@ where
         .all(|(_, remainder)| remainder == Amt::default()));
 
     // Assign cleared amounts to individual obligations
-    on_iter
+    on.into_iter()
         .map(|o| {
             match liabilities
                 .get_mut(&(o.debtor().into(), o.creditor().into()))
