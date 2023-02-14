@@ -2,7 +2,8 @@ use alloc::collections::BTreeMap;
 
 use mcmf::{Capacity, Cost, GraphBuilder, Vertex};
 
-use crate::{MinCostFlow, Node};
+use crate::node::Node;
+use crate::MinCostFlow;
 
 pub type NodeWeight = i32;
 pub type EdgeCapacity = i32;

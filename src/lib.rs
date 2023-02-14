@@ -13,6 +13,7 @@ pub mod account_id;
 pub mod algo;
 pub mod amount;
 pub mod error;
+mod node;
 pub mod obligation;
 pub mod setoff;
 
@@ -22,9 +23,10 @@ use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 
-use crate::account_id::{AccountId, Node};
+use crate::account_id::AccountId;
 use crate::algo::mcmf::MinCostFlow;
 use crate::amount::Amount;
+use crate::node::Node;
 use crate::obligation::Obligation;
 use crate::setoff::SetOff;
 
