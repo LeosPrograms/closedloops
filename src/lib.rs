@@ -20,18 +20,20 @@ pub mod setoff;
 extern crate alloc;
 
 use alloc::collections::BTreeMap;
+use alloc::format;
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 
 use crate::account_id::AccountId;
 use crate::algo::mcmf::MinCostFlow;
 use crate::amount::Amount;
+use crate::error::Error;
 use crate::node::Node;
 use crate::obligation::Obligation;
 use crate::setoff::SetOff;
 
 /// Run the specified clearing algorithm on the given obligation network and generate setoff notices
-pub fn run<O, SO, Algo, AccId, Amt>(on: Vec<O>, mut algo: Algo) -> Vec<SO>
+pub fn run<O, SO, Algo, AccId, Amt>(on: Vec<O>, mut algo: Algo) -> Result<Vec<SO>, Error>
 where
     O: Obligation<Amount = Amt, AccountId = AccId>,
     SO: SetOff<Amount = Amt, AccountId = AccId>,
@@ -79,7 +81,9 @@ where
     let td: Amt = on.iter().map(|o| o.amount()).sum();
 
     // run the (min-cost) max-flow algo
-    let (remained, paths) = algo.min_cost_flow(&liabilities).unwrap();
+    let (remained, paths) = algo
+        .min_cost_flow(&liabilities)
+        .map_err(|e| Error::AlgoSpecific(format!("{:?}", e)))?;
 
     // substract minimum cost maximum flow from the liabilities to get the clearing solution
     let mut tc = td;
@@ -121,7 +125,8 @@ where
         .all(|(_, remainder)| remainder == Amt::default()));
 
     // Assign cleared amounts to individual obligations
-    on.into_iter()
+    let setoffs = on
+        .into_iter()
         .map(|o| {
             match liabilities
                 .get_mut(&(o.debtor().into(), o.creditor().into()))
@@ -160,7 +165,9 @@ where
                 }
             }
         })
-        .collect()
+        .collect();
+
+    Ok(setoffs)
 }
 
 /// Check the correctness of the result of the MTCS run (i.e. setoffs)
