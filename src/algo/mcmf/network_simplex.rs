@@ -8,6 +8,7 @@ use crate::MinCostFlow;
 pub type NodeWeight = i32;
 pub type EdgeCapacity = i32;
 
+/// A min-cost flow impl using the network simplex method.
 pub struct NetworkSimplex;
 
 impl From<Node<NodeWeight>> for Vertex<NodeWeight> {

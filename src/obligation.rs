@@ -3,6 +3,7 @@ use serde::Deserialize;
 
 use crate::error::Error;
 
+/// An obligation entry in the obligation network.
 pub trait Obligation {
     type AccountId;
     type Amount;

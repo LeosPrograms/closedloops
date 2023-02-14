@@ -30,6 +30,7 @@ use crate::node::Node;
 use crate::obligation::Obligation;
 use crate::setoff::SetOff;
 
+/// Run the specified clearing algorithm on the given obligation network and generate setoff notices
 pub fn run<'a, O, ON, SO, Algo, AccId, Amt>(on: ON, mut algo: Algo) -> Vec<SO>
 where
     O: 'a + Obligation<Amount = Amt, AccountId = AccId>,
@@ -168,6 +169,7 @@ where
         .collect()
 }
 
+/// Check the correctness of the result of the MTCS run (i.e. setoffs)
 pub fn check<SO, AccId, Amt>(setoffs: &[SO])
 where
     SO: SetOff<AccountId = AccId, Amount = Amt>,

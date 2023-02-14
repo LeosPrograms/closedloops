@@ -4,6 +4,7 @@ use core::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 
 use num_traits::{One, Zero};
 
+/// A trait representing an amount type which is typically an integer.
 pub trait Amount:
     Copy
     + Sum<Self>

@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+/// A setoff notice consisting of an obligation augmented with a setoff amount.
 pub trait SetOff {
     type AccountId;
     type Amount;
