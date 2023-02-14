@@ -13,7 +13,7 @@ pub mod account_id;
 pub mod algo;
 pub mod amount;
 pub mod error;
-mod node;
+pub mod node;
 pub mod obligation;
 pub mod setoff;
 
