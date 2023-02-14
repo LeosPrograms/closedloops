@@ -184,7 +184,7 @@ where
         acc
     });
 
-    ba.iter().all(|(firm, amount)| amount == &bl[firm]);
+    assert!(ba.iter().all(|(firm, amount)| amount == &bl[firm]));
 
     // bc - net balance positions of the cyclic network
     let bc = setoffs.iter().fold(BTreeMap::<_, _>::new(), |mut acc, so| {
