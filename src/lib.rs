@@ -74,7 +74,7 @@ where
     // calculate Net Internal Debt (NID) from the b vector
     let nid: Amt = net_position
         .into_values()
-        .filter(|balance| balance > &Amt::default())
+        .filter(|balance| balance > &Amt::zero())
         .sum();
 
     // calculate total debt
@@ -112,7 +112,7 @@ where
         let remainder = if *flow > o.amount() {
             *flow - o.amount()
         } else {
-            Amt::default()
+            Amt::zero()
         };
         if acc.contains_key(&(o.debtor(), o.creditor())) {
             acc.remove(&(o.debtor(), o.creditor()));
@@ -122,7 +122,7 @@ where
     });
     assert!(remainders
         .into_iter()
-        .all(|(_, remainder)| remainder == Amt::default()));
+        .all(|(_, remainder)| remainder == Amt::zero()));
 
     // Assign cleared amounts to individual obligations
     let setoffs = on
@@ -142,7 +142,7 @@ where
                 ),
                 x if *x < o.amount() => {
                     let oldx = *x;
-                    *x = Amt::default();
+                    *x = Amt::zero();
                     SO::new(
                         o.id(),
                         o.debtor(),
