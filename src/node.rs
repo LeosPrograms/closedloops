@@ -1,7 +1,7 @@
 use crate::AccountId;
 
 /// A node type used to model a balanced obligation network.
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Hash)]
 pub enum Node<Id> {
     Source,
     Sink,

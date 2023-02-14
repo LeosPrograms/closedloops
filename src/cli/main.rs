@@ -94,5 +94,5 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Write the result to the output CSV file
     let output_file = File::create(args.output_file)?;
-    write_csv(res, &output_file)
+    write_csv(&res, &output_file)
 }
