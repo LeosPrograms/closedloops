@@ -48,7 +48,7 @@ where
 
 // Write the clearing results to CSV file
 fn write_csv<AccountId, Amount>(
-    res: Vec<SimpleSetoff<AccountId, Amount>>,
+    res: &[SimpleSetoff<AccountId, Amount>],
     writer: impl Write,
 ) -> Result<(), Box<dyn Error>>
 where
