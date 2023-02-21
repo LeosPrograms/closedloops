@@ -1,5 +1,5 @@
 use num_traits::Zero;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
 
@@ -14,7 +14,7 @@ pub trait Obligation {
     fn amount(&self) -> Self::Amount;
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(
     try_from = "RawObligation<AccountId, Amount>",
     bound(deserialize = "AccountId: PartialEq + Deserialize<'de>, \
@@ -78,7 +78,7 @@ where
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 pub struct RawObligation<AccountId, Amount> {
     pub id: Option<usize>,
     pub debtor: AccountId,
