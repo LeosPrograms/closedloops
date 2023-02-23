@@ -9,7 +9,7 @@ use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
 use log::LevelFilter;
 use mtcs::{
-    algo::mcmf::network_simplex::NetworkSimplex, check, obligation::SimpleObligation, run,
+    algo::mcmf::primal_dual::PrimalDual, check, obligation::SimpleObligation, run,
     setoff::SimpleSetoff,
 };
 use num_traits::Zero;
@@ -48,7 +48,7 @@ where
 
 // Write the clearing results to CSV file
 fn write_csv<AccountId, Amount>(
-    res: Vec<SimpleSetoff<AccountId, Amount>>,
+    res: &[SimpleSetoff<AccountId, Amount>],
     writer: impl Write,
 ) -> Result<(), Box<dyn Error>>
 where
@@ -82,11 +82,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Read the obligations from the input CSV file
     let input_file = File::open(args.input_file)?;
-    let on: Vec<SimpleObligation<i32, i32>> = read_obligations_csv(&input_file);
+    let on: Vec<SimpleObligation<i32, i64>> = read_obligations_csv(&input_file);
 
     // Run the MTCS algorithm
     let now = std::time::Instant::now();
-    let res = run(on, NetworkSimplex).expect("MTCS run failed");
+    let res = run(on, PrimalDual::default()).expect("MTCS run failed");
     let elapsed = now.elapsed();
     log::info!("Run time: {elapsed:?}");
 
@@ -94,5 +94,5 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Write the result to the output CSV file
     let output_file = File::create(args.output_file)?;
-    write_csv(res, &output_file)
+    write_csv(&res, &output_file)
 }

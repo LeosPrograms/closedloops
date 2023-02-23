@@ -9,10 +9,10 @@
 )]
 #![forbid(unsafe_code)]
 
-pub mod account_id;
 pub mod algo;
-pub mod amount;
 pub mod error;
+pub mod id;
+pub mod int;
 pub mod node;
 pub mod obligation;
 pub mod setoff;
@@ -24,10 +24,10 @@ use alloc::format;
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 
-use crate::account_id::AccountId;
 use crate::algo::mcmf::MinCostFlow;
-use crate::amount::Amount;
 use crate::error::Error;
+use crate::id::Id;
+use crate::int::Int;
 use crate::node::Node;
 use crate::obligation::Obligation;
 use crate::setoff::SetOff;
@@ -39,8 +39,8 @@ where
     SO: SetOff<Amount = Amt, AccountId = AccId>,
     Algo: MinCostFlow<GraphIter = BTreeMap<(Node<AccId>, Node<AccId>), Amt>, EdgeCapacity = Amt>,
     <Algo as MinCostFlow>::Paths: IntoIterator<Item = ((AccId, AccId), Amt)>,
-    AccId: AccountId,
-    Amt: Amount,
+    AccId: Id,
+    Amt: Int,
 {
     // calculate the b vector
     let net_position = on.iter().fold(BTreeMap::<_, Amt>::new(), |mut acc, o| {
@@ -74,7 +74,7 @@ where
     // calculate Net Internal Debt (NID) from the b vector
     let nid: Amt = net_position
         .into_values()
-        .filter(|balance| balance > &Amt::default())
+        .filter(|balance| balance > &Amt::zero())
         .sum();
 
     // calculate total debt
@@ -112,7 +112,7 @@ where
         let remainder = if *flow > o.amount() {
             *flow - o.amount()
         } else {
-            Amt::default()
+            Amt::zero()
         };
         if acc.contains_key(&(o.debtor(), o.creditor())) {
             acc.remove(&(o.debtor(), o.creditor()));
@@ -122,7 +122,7 @@ where
     });
     assert!(remainders
         .into_iter()
-        .all(|(_, remainder)| remainder == Amt::default()));
+        .all(|(_, remainder)| remainder == Amt::zero()));
 
     // Assign cleared amounts to individual obligations
     let setoffs = on
@@ -142,7 +142,7 @@ where
                 ),
                 x if *x < o.amount() => {
                     let oldx = *x;
-                    *x = Amt::default();
+                    *x = Amt::zero();
                     SO::new(
                         o.id(),
                         o.debtor(),
@@ -174,10 +174,10 @@ where
 pub fn check<SO, AccId, Amt>(setoffs: &[SO])
 where
     SO: SetOff<AccountId = AccId, Amount = Amt>,
-    AccId: AccountId,
-    Amt: Amount,
+    AccId: Id,
+    Amt: Int,
 {
-    fn assert_eq_pos_neg<AccId, Amt: Amount>(b: &BTreeMap<AccId, Amt>) {
+    fn assert_eq_pos_neg<AccId, Amt: Int>(b: &BTreeMap<AccId, Amt>) {
         let pos_b: Amt = b
             .values()
             .cloned()
@@ -239,9 +239,11 @@ where
         });
     assert!(creditors
         .iter()
+        .filter(|(_, amount)| amount > &&Amt::zero())
         .all(|(firm, amount)| amount == &debtors[firm]));
     assert!(debtors
         .iter()
+        .filter(|(_, amount)| amount > &&Amt::zero())
         .all(|(firm, amount)| amount == &creditors[firm]));
 
     let ba_len = ba.len();
