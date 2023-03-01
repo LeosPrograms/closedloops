@@ -9,8 +9,8 @@ pub trait Obligation {
     type Amount;
 
     fn id(&self) -> Option<usize>;
-    fn debtor(&self) -> Self::AccountId;
-    fn creditor(&self) -> Self::AccountId;
+    fn debtor(&self) -> &Self::AccountId;
+    fn creditor(&self) -> &Self::AccountId;
     fn amount(&self) -> Self::Amount;
 }
 
@@ -55,7 +55,6 @@ where
 
 impl<AccountId, Amount> Obligation for SimpleObligation<AccountId, Amount>
 where
-    AccountId: Copy,
     Amount: Copy,
 {
     type AccountId = AccountId;
@@ -65,12 +64,12 @@ where
         self.id
     }
 
-    fn debtor(&self) -> Self::AccountId {
-        self.debtor
+    fn debtor(&self) -> &Self::AccountId {
+        &self.debtor
     }
 
-    fn creditor(&self) -> Self::AccountId {
-        self.creditor
+    fn creditor(&self) -> &Self::AccountId {
+        &self.creditor
     }
 
     fn amount(&self) -> Self::Amount {

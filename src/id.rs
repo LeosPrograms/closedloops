@@ -6,3 +6,5 @@ pub trait Id: Clone + Ord + Debug {}
 impl Id for i32 {}
 
 impl Id for u64 {}
+
+impl Id for usize {}

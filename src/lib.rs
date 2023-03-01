@@ -56,8 +56,8 @@ where
 {
     // calculate the b vector
     let net_position = on.iter().fold(BTreeMap::<_, Amt>::new(), |mut acc, o| {
-        *acc.entry(o.creditor()).or_default() += o.amount(); // credit increases the net balance
-        *acc.entry(o.debtor()).or_default() -= o.amount(); // debit decreases the net balance
+        *acc.entry(o.creditor().clone()).or_default() += o.amount(); // credit increases the net balance
+        *acc.entry(o.debtor().clone()).or_default() -= o.amount(); // debit decreases the net balance
         acc
     });
 
@@ -95,7 +95,7 @@ where
     // run the (min-cost) max-flow algo
     let (remained, paths) = algo
         .min_cost_flow(&liabilities)
-        .map_err(|e| Error::AlgoSpecific(format!("{:?}", e)))?;
+        .map_err(|e| Error::AlgoSpecific(format!("{e:?}")))?;
 
     // substract minimum cost maximum flow from the liabilities to get the clearing solution
     let mut tc = td;
@@ -146,8 +146,8 @@ where
             {
                 x if x.is_zero() => SO::new(
                     o.id(),
-                    o.debtor(),
-                    o.creditor(),
+                    o.debtor().clone(),
+                    o.creditor().clone(),
                     o.amount(),
                     Amt::zero(),
                     o.amount(),
@@ -157,8 +157,8 @@ where
                     *x = Amt::zero();
                     SO::new(
                         o.id(),
-                        o.debtor(),
-                        o.creditor(),
+                        o.debtor().clone(),
+                        o.creditor().clone(),
                         o.amount(),
                         oldx,
                         o.amount() - oldx,
@@ -168,8 +168,8 @@ where
                     *x -= o.amount();
                     SO::new(
                         o.id(),
-                        o.debtor(),
-                        o.creditor(),
+                        o.debtor().clone(),
+                        o.creditor().clone(),
                         o.amount(),
                         o.amount(),
                         Amt::zero(),
@@ -222,8 +222,8 @@ where
 
     // bc - net balance positions of the cyclic network
     let bc = setoffs.iter().fold(BTreeMap::<_, _>::new(), |mut acc, so| {
-        *acc.entry(so.creditor()).or_default() += so.setoff();
-        *acc.entry(so.debtor()).or_default() -= so.setoff();
+        *acc.entry(so.creditor()).or_default() += so.set_off();
+        *acc.entry(so.debtor()).or_default() -= so.set_off();
         acc
     });
 
@@ -240,13 +240,13 @@ where
     let debtors = setoffs
         .iter()
         .fold(BTreeMap::<_, Amt>::new(), |mut acc, so| {
-            *acc.entry(so.debtor()).or_default() += so.setoff();
+            *acc.entry(so.debtor()).or_default() += so.set_off();
             acc
         });
     let creditors = setoffs
         .iter()
         .fold(BTreeMap::<_, Amt>::new(), |mut acc, so| {
-            *acc.entry(so.creditor()).or_default() += so.setoff();
+            *acc.entry(so.creditor()).or_default() += so.set_off();
             acc
         });
     assert!(creditors
@@ -277,7 +277,7 @@ where
 
     let debt_before: Amt = setoffs.iter().map(|s| s.amount()).sum();
     let debt_after: Amt = setoffs.iter().map(|s| s.remainder()).sum();
-    let compensated: Amt = setoffs.iter().map(|s| s.setoff()).sum();
+    let compensated: Amt = setoffs.iter().map(|s| s.set_off()).sum();
 
     log::debug!("num of companies: {ba_len}");
     log::debug!("      NID before: {nid_a}");

@@ -1,6 +1,6 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-/// A setoff notice consisting of an obligation augmented with a setoff amount.
+/// A set-off notice consisting of an obligation augmented with a set-off amount.
 pub trait SetOff {
     type AccountId;
     type Amount;
@@ -10,31 +10,30 @@ pub trait SetOff {
         debtor: Self::AccountId,
         creditor: Self::AccountId,
         amount: Self::Amount,
-        setoff: Self::Amount,
+        set_off: Self::Amount,
         remainder: Self::Amount,
     ) -> Self;
     fn id(&self) -> Option<usize>;
-    fn debtor(&self) -> Self::AccountId;
-    fn creditor(&self) -> Self::AccountId;
+    fn debtor(&self) -> &Self::AccountId;
+    fn creditor(&self) -> &Self::AccountId;
     fn amount(&self) -> Self::Amount;
-    fn setoff(&self) -> Self::Amount;
+    fn set_off(&self) -> Self::Amount;
     fn remainder(&self) -> Self::Amount;
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct SimpleSetoff<AccountId, Amount> {
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<usize>,
     debtor: AccountId,
     creditor: AccountId,
     amount: Amount,
-    setoff: Amount,
+    set_off: Amount,
     remainder: Amount,
 }
 
 impl<AccountId, Amount> SetOff for SimpleSetoff<AccountId, Amount>
 where
-    AccountId: Copy,
     Amount: Copy,
 {
     type AccountId = AccountId;
@@ -45,7 +44,7 @@ where
         debtor: Self::AccountId,
         creditor: Self::AccountId,
         amount: Self::Amount,
-        setoff: Self::Amount,
+        set_off: Self::Amount,
         remainder: Self::Amount,
     ) -> Self {
         Self {
@@ -53,7 +52,7 @@ where
             debtor,
             creditor,
             amount,
-            setoff,
+            set_off,
             remainder,
         }
     }
@@ -62,20 +61,20 @@ where
         self.id
     }
 
-    fn debtor(&self) -> Self::AccountId {
-        self.debtor
+    fn debtor(&self) -> &Self::AccountId {
+        &self.debtor
     }
 
-    fn creditor(&self) -> Self::AccountId {
-        self.creditor
+    fn creditor(&self) -> &Self::AccountId {
+        &self.creditor
     }
 
     fn amount(&self) -> Self::Amount {
         self.amount
     }
 
-    fn setoff(&self) -> Self::Amount {
-        self.setoff
+    fn set_off(&self) -> Self::Amount {
+        self.set_off
     }
 
     fn remainder(&self) -> Self::Amount {

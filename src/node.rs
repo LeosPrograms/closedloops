@@ -16,3 +16,12 @@ where
         Self::WithId(id)
     }
 }
+
+impl<N> From<&N> for Node<N>
+where
+    N: Id,
+{
+    fn from(id: &N) -> Self {
+        Self::WithId(id.clone())
+    }
+}
