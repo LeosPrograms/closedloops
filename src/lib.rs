@@ -1,3 +1,15 @@
+//! Rust implementations of algorithms and tools for Multilateral Trade Credit Set-off (MTCS).
+//!
+//! This crate provides -
+//! * A library containing implementations of algorithms used for MTCS.
+//! * A CLI tool that runs MTCS on a specified input CSV file (containing a list of obligations) and
+//! outputs the resulting set-off notices as a CSV file.
+//!
+//! This crate implements MTCS using the minimum-cost maximum-flow algorithms based on ideas from
+//! the following paper -
+//! [Fleischman, T.; Dini, P. Mathematical Foundations for Balancing the Payment System in the Trade Credit Market. J. Risk Financial Manag. 2021, 14, 452](https://doi.org/10.3390/jrfm14090452)
+//!
+
 #![no_std]
 #![deny(
     warnings,

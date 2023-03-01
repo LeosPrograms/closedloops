@@ -11,6 +11,7 @@ authors = ["Informal Systems <hello@informal.systems>"]
 description = """
     Algorithm implementations for Multilateral Trade Credit Set-off (MTCS)
 """
+exclude = ["/py"]
 
 [features]
 lemon-cpp = ["mcmf"]
