@@ -97,3 +97,16 @@ where
         Self::new(o.id, o.debtor, o.creditor, o.amount)
     }
 }
+
+impl<AccountId, Amount> From<SimpleObligation<AccountId, Amount>>
+    for RawObligation<AccountId, Amount>
+{
+    fn from(o: SimpleObligation<AccountId, Amount>) -> Self {
+        Self {
+            id: o.id,
+            debtor: o.debtor,
+            creditor: o.creditor,
+            amount: o.amount,
+        }
+    }
+}

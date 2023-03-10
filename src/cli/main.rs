@@ -9,8 +9,8 @@ use clap::Parser;
 use csv::{Reader as CsvReader, Writer as CsvWriter};
 use log::LevelFilter;
 use mtcs::{
-    algo::mcmf::primal_dual::PrimalDual, check, obligation::SimpleObligation, run,
-    setoff::SimpleSetoff,
+    algo::mcmf::primal_dual::PrimalDual, obligation::SimpleObligation, setoff::SimpleSetoff,
+    ComplexIdMtcs, DefaultMtcs, Mtcs,
 };
 use num_traits::Zero;
 use serde::{de::DeserializeOwned, Serialize};
@@ -86,11 +86,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Run the MTCS algorithm
     let now = std::time::Instant::now();
-    let res = run(on, PrimalDual::default()).expect("MTCS run failed");
+
+    let mut mtcs = ComplexIdMtcs::wrapping(DefaultMtcs::new(PrimalDual::default()));
+    let res = mtcs.run(on).expect("MTCS run failed");
     let elapsed = now.elapsed();
     log::info!("Run time: {elapsed:?}");
 
-    check(&res);
+    mtcs.check(&res).expect("MTCS check failed");
 
     // Write the result to the output CSV file
     let output_file = File::create(args.output_file)?;

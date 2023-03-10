@@ -24,12 +24,12 @@ pub trait SetOff {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct SimpleSetoff<AccountId, Amount> {
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<usize>,
-    debtor: AccountId,
-    creditor: AccountId,
-    amount: Amount,
-    set_off: Amount,
-    remainder: Amount,
+    pub id: Option<usize>,
+    pub debtor: AccountId,
+    pub creditor: AccountId,
+    pub amount: Amount,
+    pub set_off: Amount,
+    pub remainder: Amount,
 }
 
 impl<AccountId, Amount> SetOff for SimpleSetoff<AccountId, Amount>

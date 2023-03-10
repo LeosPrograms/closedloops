@@ -10,9 +10,10 @@ use petgraph::visit::EdgeFiltered;
 use petgraph::Direction;
 
 use crate::algo::max_flow::push_relabel_max_flow;
+use crate::algo::mcmf::MinCostFlow;
 use crate::id::Id;
 use crate::int::Int;
-use crate::{MinCostFlow, Node};
+use crate::node::Node;
 
 #[derive(Debug, Clone, Default)]
 pub struct EdgeWeight<Cost, Capacity> {
@@ -20,7 +21,7 @@ pub struct EdgeWeight<Cost, Capacity> {
     pub capacity: Capacity, // µ
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PrimalDual<Id, Int>(PhantomData<(Id, Int)>);
 
 impl<N, I> MinCostFlow for PrimalDual<N, I>
